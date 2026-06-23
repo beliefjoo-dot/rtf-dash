@@ -413,7 +413,7 @@ function renderMetricCell(row, metric, metricIndex, compressed) {
     const isAmt = state.rtfDisplayMode === "amount";
     const hasS  = isAmt ? (Number.isFinite(row.shortageAmount) && row.shortageAmount > 0)
                         : (Number.isFinite(row.shortageQty)    && row.shortageQty    > 0);
-    const raw = hasS ? `-${isAmt ? formatMoney(row.shortageAmount) : formatNumber(row.shortageQty)}` : "-";
+    const raw = hasS ? (isAmt ? formatMoney(row.shortageAmount) : formatNumber(row.shortageQty)) : "-";
     return `<td class="rtf-metric-cell rtf-shortage-cell ${hasS ? "rtf-status-text shortage" : "rtf-neutral-text"} rtf-cell-right${mb}">${escapeHtml(raw)}</td>`;
   }
   if (metric === "매출") {

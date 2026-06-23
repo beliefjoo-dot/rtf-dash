@@ -1,18 +1,18 @@
 :root {
-  --color-primary: #1d2783;
-  --color-primary-dark: #10145c;
-  --color-accent: #c46b4d;
-  --color-bg: #f0f1f5;
+  --color-primary: #28278f;
+  --color-primary-dark: #17194a;
+  --color-accent: #28278f;
+  --color-bg: #f3f5f9;
   --color-card: #ffffff;
-  --color-card-soft: #f8f9fd;
-  --color-border: #e4e6ef;
-  --color-text: #1a1a2e;
-  --color-muted: #7a8099;
-  --color-warn: #c46b2d;
-  --color-danger: #d64545;
-  --color-ok: #2d7652;
+  --color-card-soft: #f7f9fc;
+  --color-border: #e3e7ef;
+  --color-text: #1f2933;
+  --color-muted: #6b7280;
+  --color-warn: #e67e22;
+  --color-danger: #c0392b;
+  --color-ok: #2f5f3a;
   --radius-card: 8px;
-  --shadow-card: 0 2px 12px rgba(16, 20, 92, 0.08);
+  --shadow-card: 0 2px 8px rgba(15, 23, 42, 0.06);
   --space-section: 20px;
   --font-size-kpi: 28px;
   --font-size-body: 14px;
@@ -28,7 +28,7 @@
   --danger: var(--color-danger);
   --ok: var(--color-ok);
   --shadow: var(--shadow-card);
-  font-family: "Segoe UI", "Malgun Gothic", Arial, sans-serif;
+  font-family: "Noto Sans KR", "Apple SD Gothic Neo", "Nanum Gothic", "Malgun Gothic", sans-serif;
 }
 
 * {
@@ -41,7 +41,8 @@ body {
   min-height: 100vh;
   color: var(--ink);
   background: var(--bg);
-  font-size: var(--font-size-body);
+  font-family: "Noto Sans KR", "Apple SD Gothic Neo", "Nanum Gothic", "Malgun Gothic", sans-serif;
+  font-size: 13px;
 }
 
 button,

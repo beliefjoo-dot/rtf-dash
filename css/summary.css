@@ -1,0 +1,215 @@
+.sum-screen {
+  background: #f3f5f9;
+  color: #1f2933;
+  font-family: "Noto Sans KR", "Apple SD Gothic Neo", "Nanum Gothic", "Malgun Gothic", sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* ── 공통 카드 ── */
+.sum-card {
+  background: #fff;
+  border: 1px solid #e3e7ef;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(15,23,42,0.06);
+  margin-bottom: 12px;
+}
+
+/* ── 헤더 카드 ── */
+.sum-header {
+  border-top: 4px solid #28278f;
+  padding: 18px;
+}
+
+.sum-header h2 {
+  color: #1f2933;
+  font-size: 21px;
+  font-weight: 700;
+  margin: 0 0 6px;
+}
+
+.sum-header p {
+  color: #6b7280;
+  font-size: 12px;
+  margin: 0;
+}
+
+/* ── KPI 카드 그리드 ── */
+.sum-kpi-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, 1fr);
+  margin-bottom: 12px;
+}
+
+.sum-kpi-card {
+  background: #fff;
+  border: 1px solid #e3e7ef;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(15,23,42,0.06);
+  cursor: pointer;
+  padding: 16px 18px;
+  transition: box-shadow 0.12s, border-color 0.12s;
+}
+
+.sum-kpi-card:hover {
+  border-color: #28278f;
+  box-shadow: 0 4px 14px rgba(40,39,143,0.12);
+}
+
+.sum-kpi-label {
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.sum-kpi-value {
+  color: #1f2933;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.sum-kpi-value.shortage { color: #b02a37; }
+.sum-kpi-value.warn     { color: #b45309; }
+.sum-kpi-value.ok       { color: #117a52; }
+.sum-kpi-value.neutral  { color: #9ca3af; }
+
+.sum-kpi-desc {
+  color: #9ca3af;
+  font-size: 11px;
+}
+
+.sum-kpi-nav {
+  color: #28278f;
+  font-size: 11px;
+  font-weight: 700;
+  margin-top: 10px;
+}
+
+/* ── 안건 카드 ── */
+.sum-agenda-card {
+  overflow: hidden;
+  padding: 0;
+}
+
+.sum-agenda-header {
+  border-bottom: 1px solid #e3e7ef;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 18px;
+}
+
+.sum-agenda-header h3 {
+  color: #1f2933;
+  font-size: 15px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.sum-agenda-note {
+  color: #9ca3af;
+  font-size: 11px;
+}
+
+/* ── 안건 테이블 ── */
+.sum-h-scroll { max-width: 100%; overflow-x: auto; }
+
+.sum-agenda-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12px;
+  min-width: 900px;
+  width: 100%;
+}
+
+.sum-agenda-table th,
+.sum-agenda-table td {
+  border-bottom: 1px solid #e3e7ef;
+  height: 36px;
+  padding: 6px 12px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.sum-agenda-table thead th {
+  background: #24272b;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.sum-agenda-table td { color: #1f2933; text-align: center; }
+.sum-agenda-table td.sum-td-left  { text-align: left; max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+.sum-agenda-table tbody tr:hover td { background: #f0f4ff; }
+.sum-agenda-table tbody tr:last-child td { border-bottom: none; }
+
+/* ── 안건 유형 배지 ── */
+.sum-type-badge {
+  border-radius: 4px;
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 20px;
+  padding: 0 8px;
+}
+
+.sum-type-rtf       { background: #eff6ff; color: #1d4ed8; }
+.sum-type-bom       { background: #fef9ec; color: #b45309; }
+.sum-type-inv       { background: #ecfdf5; color: #047857; }
+.sum-type-impact    { background: #f5f3ff; color: #6d28d9; }
+.sum-type-default   { background: #f3f4f6; color: #374151; }
+
+/* ── 진행상태 배지 ── */
+.sum-status-badge {
+  border-radius: 999px;
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 22px;
+  min-width: 72px;
+  padding: 0 10px;
+  text-align: center;
+}
+
+.sum-s-check   { background: #fef3c7; color: #b45309; }
+.sum-s-adjust  { background: #fee2e2; color: #b02a37; }
+.sum-s-review  { background: #eff6ff; color: #1d4ed8; }
+.sum-s-done    { background: #d1fae5; color: #065f46; }
+.sum-s-default { background: #f3f4f6; color: #6b7280; }
+
+/* ── 화면 이동 버튼 ── */
+.sum-nav-btn {
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  color: #374151;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  height: 24px;
+  padding: 0 8px;
+  transition: background 0.1s, border-color 0.1s;
+  white-space: nowrap;
+}
+
+.sum-nav-btn:hover { background: #f0f4ff; border-color: #28278f; color: #28278f; }
+
+/* ── 빈 상태 ── */
+.sum-no-agenda {
+  color: #9ca3af;
+  font-size: 13px;
+  padding: 32px;
+  text-align: center;
+}
+
+/* 반응형: 2열로 축소 */
+@media (max-width: 900px) {
+  .sum-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}

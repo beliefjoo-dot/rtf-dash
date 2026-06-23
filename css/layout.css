@@ -12,10 +12,11 @@
   z-index: 100;
   display: flex;
   align-items: stretch;
-  height: 52px;
+  height: 58px;
   flex-shrink: 0;
-  background: var(--color-primary-dark);
-  box-shadow: 0 2px 14px rgba(16, 20, 92, 0.22);
+  background: #ffffff;
+  border-bottom: 3px solid #24272b;
+  box-shadow: 0 1px 6px rgba(15, 23, 42, 0.08);
 }
 
 .brand {
@@ -23,13 +24,13 @@
   align-items: center;
   gap: 10px;
   flex-shrink: 0;
-  padding: 0 20px;
-  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 0 18px;
+  border-right: 1px solid #e1e5ec;
   margin-right: 4px;
 }
 
 .brand strong {
-  color: #ffffff;
+  color: #1f2933;
   font-size: 15px;
   font-weight: 800;
   white-space: nowrap;
@@ -37,17 +38,19 @@
 }
 
 .brand span {
-  color: rgba(255, 255, 255, 0.42);
+  color: #6b7280;
   font-size: 11px;
   white-space: nowrap;
 }
 
 .tab-nav {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   flex: 1;
+  gap: 4px;
   min-width: 0;
   overflow-x: auto;
+  padding: 12px 8px 0;
   scrollbar-width: none;
 }
 
@@ -80,8 +83,8 @@
   gap: 8px;
   flex-shrink: 0;
   padding: 0 20px;
-  border-left: 1px solid rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.55);
+  border-left: 1px solid #e1e5ec;
+  color: #6b7280;
   font-size: 12px;
   white-space: nowrap;
 }
@@ -105,7 +108,7 @@
 .screen-titlebar {
   padding: 18px 32px 14px;
   border-bottom: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.92);
+  background: #ffffff;
 }
 
 .screen-titlebar h1 {

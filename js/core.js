@@ -15,8 +15,8 @@ const menus = [
   ["meeting","회의체계"],
   ["data-check","데이터점검"],
   ["summary","종합현황"],
-  ["rtf","RTF(공급가능성 판정)"],
-  ["constraint","공급제한 원인"],
+  ["rtf","RTF(현황)"],
+  ["constraint","RTF(공급문제 원인)"],
   ["inventory-variance","재고금액 변동분석"],
   ["diagnosis","수급 진단"],
   ["adjustment","조정안 입력"],
@@ -47,6 +47,7 @@ const state = {
   rtfExpanded: false,
   expandedItemGroups: new Set(),
   rtfDisplayMode: "qty",
+  rtfSectionMode: "business",
 };
 
 // DOM 참조

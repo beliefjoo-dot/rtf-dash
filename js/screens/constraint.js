@@ -296,7 +296,7 @@ function renderConstraint() {
   const warnHtml  = !hasData ? `<span class="cst-toolbar-warn">데이터 연결 필요 — 데이터점검 화면에서 RAW 파일을 먼저 선택하십시오.</span>` : "";
 
   const headerHtml = `<section class="cst-card cst-top">
-    <h2 class="cst-title">RTF 공급문제 원인 분석</h2>
+    <h2 class="cst-title">공급제한 원인 분석</h2>
     <div class="cst-meta">기준월: ${escapeHtml(months[0])} | 대상기간: ${escapeHtml(months.map(monthLabel).join(" ~ "))}</div>
   </section>`;
 
@@ -320,7 +320,9 @@ function renderConstraint() {
 
   return `<div class="cst-screen">
     <div class="cst-toolbar">
-      ${btnHtml}${warnHtml}
+      ${btnHtml}
+      <button type="button" class="adj-candidate-btn" disabled title="조정입력 연계 기능은 후속 단계에서 구현 예정입니다.">조정안에 담기</button>
+      ${warnHtml}
     </div>
     ${headerHtml}
     ${contentHtml}

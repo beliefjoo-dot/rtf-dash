@@ -68,23 +68,58 @@ function renderPlaceholder(title) {
   return `<section class="section-band"><div class="section-header"><h2>${escapeHtml(title)}</h2><p>현재 로컬 파일 모드에서는 데이터점검과 RTF 화면을 중심으로 사용합니다.</p></div></section>`;
 }
 
+// ── 재고전망 ──────────────────────────────────────────────────────────────────
+function renderInventoryForecast() {
+  return `<section class="section-band">
+    <div class="section-header">
+      <div><h2>현재 계획 기준 재고금액·재고일수 전망</h2></div>
+      <p>현재 판매계획·공급계획 기준으로 월별 재고금액 및 재고일수를 전망합니다.</p>
+    </div>
+    <div class="adj-candidate-area">
+      <button type="button" class="adj-candidate-btn" disabled title="조정입력 연계 기능은 후속 단계에서 구현 예정입니다.">조정안에 담기</button>
+      <span class="adj-candidate-hint">조정입력 연계 기능은 후속 단계에서 구현 예정입니다.</span>
+    </div>
+    <div class="notice-no-data">재고전망 화면은 후속 단계에서 구현 예정입니다.</div>
+  </section>`;
+}
+
+// ── 수급진단 ──────────────────────────────────────────────────────────────────
+function renderDiagnosis() {
+  const adjTypes = ["RTF 개선","적정재고 초과 조정","생산 Pull-in","생산 이연","입고 추가","입고 이연","공급계획 감량","공통자재 배분 확인"];
+  return `<section class="section-band">
+    <div class="section-header">
+      <div><h2>수급진단 및 조정 대상 선별</h2></div>
+      <p>RTF 개선 대상과 적정재고 초과 조정 대상을 함께 선별합니다.</p>
+    </div>
+    <div class="adj-candidate-area">
+      <button type="button" class="adj-candidate-btn" disabled title="조정입력 연계 기능은 후속 단계에서 구현 예정입니다.">조정안에 담기</button>
+      <span class="adj-candidate-hint">조정입력 연계 기능은 후속 단계에서 구현 예정입니다.</span>
+    </div>
+    <div class="notice-no-data">
+      <strong>조정 유형 기준 (향후 구현 예정)</strong><br><br>
+      ${adjTypes.map(t => `<span class="cause-type-tag" style="margin:3px 4px 3px 0;display:inline-block;">${escapeHtml(t)}</span>`).join(" ")}
+    </div>
+  </section>`;
+}
+
 // ── 화면 전환 ─────────────────────────────────────────────────────────────────
 function render(menuId) {
   state.currentMenuId = menuId;
   const menu = menus.find(([id]) => id === menuId) || menus[0];
-  screenTitle.textContent = menu[1];
+  screenTitle.textContent = menu[2] || menu[1];
   renderTabs(menu[0]);
   const screens = {
     "meeting":            renderMeeting,
     "data-check":         renderDataCheck,
-    "rtf":                renderRtf,
-    "summary":            () => renderPlaceholder("종합현황"),
-    "constraint":         renderConstraint,
-    "inventory-variance": () => renderPlaceholder("재고금액 변동분석"),
-    "diagnosis":          () => renderPlaceholder("수급 진단"),
-    "adjustment":         () => renderPlaceholder("조정안 입력"),
-    "impact":             () => renderPlaceholder("조정 후 영향"),
-    "minutes":            () => renderPlaceholder("회의록"),
+    "rtf":                 renderRtf,
+    "summary":             () => renderPlaceholder("수급관리 종합현황"),
+    "constraint":          renderConstraint,
+    "inventory-forecast":  renderInventoryForecast,
+    "inventory-variance":  () => renderPlaceholder("재고금액 변동분석"),
+    "diagnosis":           renderDiagnosis,
+    "adjustment":          () => renderPlaceholder("조정안 입력"),
+    "impact":              () => renderPlaceholder("조정 후 영향 분석"),
+    "minutes":             () => renderPlaceholder("회의록 및 의견 관리"),
   };
   screenRoot.innerHTML = (screens[menu[0]] || renderMeeting)();
   if (menu[0] === "data-check") bindDataCheck();

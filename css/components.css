@@ -1,30 +1,29 @@
 .tab-button {
   width: auto;
-  height: 52px;
-  padding: 0 13px;
-  border: none;
-  border-bottom: 3px solid transparent;
-  border-radius: 0;
-  color: rgba(255, 255, 255, 0.62);
-  background: transparent;
+  height: 38px;
+  padding: 0 28px;
+  border: 1px solid transparent;
+  border-radius: 5px 5px 0 0;
+  color: #495057;
+  background: #e9edf3;
   text-align: center;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
   box-shadow: none;
 }
 
 .tab-button:hover {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.08);
+  color: #1f2933;
+  background: #fff4cc;
   border-color: transparent;
   box-shadow: none;
 }
 
 .tab-button.is-active {
   color: #ffffff;
-  background: rgba(255, 255, 255, 0.1);
-  border-bottom-color: var(--color-accent);
+  background: #24272b;
+  border-color: #24272b;
   box-shadow: none;
 }
 
@@ -1120,3 +1119,30 @@
 
 .jl-danger .jl-text { color: var(--danger); font-weight: 600; }
 .jl-action .jl-text { color: var(--color-primary-dark); font-weight: 700; }
+
+/* ── 조정안에 담기 버튼 ─────────────────────────────────── */
+
+.adj-candidate-btn {
+  background: #f3f4f6;
+  border: 1px dashed #9ca3af;
+  border-radius: 6px;
+  color: #9ca3af;
+  cursor: not-allowed;
+  font-size: 12px;
+  font-weight: 700;
+  height: 30px;
+  padding: 0 14px;
+  white-space: nowrap;
+}
+
+.adj-candidate-area {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.adj-candidate-hint {
+  color: #9ca3af;
+  font-size: 11px;
+}

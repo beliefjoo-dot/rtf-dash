@@ -649,7 +649,7 @@ function renderRtf() {
   _rtfItems = computeRtfItems();
   const items  = _rtfItems;
   if (!state.mappedData.plan_monthly.length) {
-    return `<div class="rtf-screen"><section class="rtf-card rtf-top"><h2 class="rtf-title">RTF 월별 대응 현황</h2><div class="rtf-nodata">데이터 연결 필요<br>데이터점검 화면에서 RAW 파일을 선택해 주세요.</div></section></div>`;
+    return `<div class="rtf-screen"><section class="rtf-card rtf-top"><h2 class="rtf-title">RTF(공급가능성 판정)</h2><div class="rtf-nodata">데이터 연결 필요<br>데이터점검 화면에서 RAW 파일을 선택해 주세요.</div></section></div>`;
   }
   const months = getRtfMonths();
   const match  = checkTotalsMatch(items);
@@ -669,7 +669,7 @@ function renderRtf() {
 
   return `<div class="rtf-screen rtf-excel-layout">
     <section class="rtf-card rtf-top">
-      <h2 class="rtf-title">RTF 월별 대응 현황</h2>
+      <h2 class="rtf-title">RTF(공급가능성 판정)</h2>
       <div class="rtf-meta">
         기준월: ${escapeHtml(months[0])} | 대상기간: ${escapeHtml(months.map(monthLabel).join(" ~ "))} | 표시: ${state.rtfDisplayMode === "qty" ? "수량" : "금액"}
         ${verifyHtml}
@@ -690,6 +690,7 @@ function renderRtf() {
         <button type="button" class="rtf-mode-btn ${state.rtfDisplayMode === "amount" ? "active" : ""}" data-rtf-mode="amount">금액</button>
       </div>
       <button type="button" id="rtfExpandToggle" class="rtf-extra-toggle ${state.rtfExpanded ? "active" : ""}">${state.rtfExpanded ? "축소" : "확대"}</button>
+      <button type="button" class="adj-candidate-btn" disabled title="조정입력 연계 기능은 후속 단계에서 구현 예정입니다.">조정안에 담기</button>
       <span class="rtf-toolbar-hint">${state.rtfExpanded ? "분석용 상세 · 보기 기준 탭 선택" : "발표용 기본 · 사업부/플랜트/유형 전체 표시"}</span>
     </div>
     ${sectionHtml}

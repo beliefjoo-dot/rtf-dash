@@ -79,7 +79,7 @@ function render(menuId) {
     "data-check":         renderDataCheck,
     "rtf":                renderRtf,
     "summary":            () => renderPlaceholder("종합현황"),
-    "constraint":         () => renderPlaceholder("공급제한 원인"),
+    "constraint":         renderConstraint,
     "inventory-variance": () => renderPlaceholder("재고금액 변동분석"),
     "diagnosis":          () => renderPlaceholder("수급 진단"),
     "adjustment":         () => renderPlaceholder("조정안 입력"),
@@ -89,6 +89,7 @@ function render(menuId) {
   screenRoot.innerHTML = (screens[menu[0]] || renderMeeting)();
   if (menu[0] === "data-check") bindDataCheck();
   if (menu[0] === "rtf")        bindRtf();
+  if (menu[0] === "constraint") bindConstraint();
 }
 
 // ── 시작 ─────────────────────────────────────────────────────────────────────

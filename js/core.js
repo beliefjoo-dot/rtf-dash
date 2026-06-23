@@ -48,6 +48,9 @@ const state = {
   expandedItemGroups: new Set(),
   rtfDisplayMode: "qty",
   rtfSectionMode: "business",
+  bomStatus: "idle",
+  bomResult: null,
+  bomProgressStep: "",
 };
 
 // DOM 참조

@@ -146,6 +146,8 @@ function uniq(items, key) { return sortKo([...new Set(items.map((i) => i[key]))]
 function buildHierarchy(items, mode) {
   const nodes = [];
   if (mode === "business") {
+    nodes.push(makeNode("business|__total__", "", -1, "total", "사업부 총합계", items,
+      { div:"", bu:"", plant:"", type:"", group:"", code:"" }));
     uniq(items, "businessUnit").forEach((bu) => {
       const buItems = items.filter((i) => i.businessUnit === bu);
       const buId    = `b|${bu}`;
@@ -166,6 +168,8 @@ function buildHierarchy(items, mode) {
       });
     });
   } else if (mode === "plant") {
+    nodes.push(makeNode("plant|__total__", "", -1, "total", "플랜트 총합계", items,
+      { div:"", bu:"", plant:"", type:"", group:"", code:"" }));
     uniq(items, "plant").forEach((plant) => {
       const plantItems = items.filter((i) => i.plant === plant);
       const plantId    = `p|${plant}`;
@@ -186,6 +190,8 @@ function buildHierarchy(items, mode) {
       });
     });
   } else {
+    nodes.push(makeNode("type|__total__", "", -1, "total", "유형별 총합계", items,
+      { div:"", bu:"", plant:"", type:"", group:"", code:"" }));
     uniq(items, "typeGroup").forEach((type) => {
       const typeItems = items.filter((i) => i.typeGroup === type);
       const typeId    = `t|${type}`;
@@ -284,13 +290,14 @@ function renderMetricCell(row, metric, metricIndex, compressed) {
 
 // ── 행 렌더 ──────────────────────────────────────────────────────────────────
 function renderHierarchyRow(node) {
+  const isTotal     = node.kind === "total";
   const isItem      = node.kind === "item";
   const isItemGroup = node.kind === "itemGroup";
   const item        = isItem ? node.items[0] : null;
   const { div, bu, plant, type, group, code } = node.cols;
   const baseQty     = formatBaseForNode(node);
   const compressed  = !state.rtfExpanded;
-  const isHidden    = compressed ? node.level > 0 : (isItem && !state.expandedItemGroups.has(node.parentId));
+  const isHidden    = isTotal ? false : (compressed ? node.level > 0 : (isItem && !state.expandedItemGroups.has(node.parentId)));
   const monthColumns = getVisibleMonthColumns();
   const cells = getRtfMonths().map((_, mIdx) => {
     const monthRow = isItem ? item.monthlyStatus[mIdx] : aggregateMonth(node.items, mIdx);
@@ -299,8 +306,9 @@ function renderHierarchyRow(node) {
   const toggleBtn = isItemGroup && state.rtfExpanded
     ? `<button type="button" class="rtf-item-toggle" data-node-id="${escapeHtml(node.id)}">${state.expandedItemGroups.has(node.id) ? "-" : "+"}</button>`
     : "";
-  return `<tr class="rtf-h-row level-${node.level} ${isItem ? "is-item" : "is-group"}" data-node-id="${escapeHtml(node.id)}" data-parent-id="${escapeHtml(node.parentId)}"${isHidden ? " hidden" : ""}>
-    <td class="rtf-sticky rtf-col-div">${toggleBtn}<span class="rtf-div-label">${escapeHtml(div)}</span></td>
+  const kindCls = isTotal ? "is-total" : (isItem ? "is-item" : "is-group");
+  return `<tr class="rtf-h-row level-${node.level} ${kindCls}" data-node-id="${escapeHtml(node.id)}" data-parent-id="${escapeHtml(node.parentId)}"${isHidden ? " hidden" : ""}>
+    <td class="rtf-sticky rtf-col-div">${toggleBtn}${div ? `<span class="rtf-div-label">${escapeHtml(div)}</span>` : ""}</td>
     <td class="rtf-sticky rtf-col-bu">${escapeHtml(bu)}</td>
     <td class="rtf-sticky rtf-col-plant">${escapeHtml(plant)}</td>
     <td class="rtf-sticky rtf-col-type">${escapeHtml(type)}</td>

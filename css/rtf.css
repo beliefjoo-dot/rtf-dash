@@ -134,18 +134,17 @@
   overflow: hidden;
 }
 
-.rtf-matrix-block { }
-
 .rtf-sec-title {
   align-items: center;
-  background: #343a40;
-  color: #fff;
+  background: #fff;
+  border-bottom: 2px solid #212529;
+  color: #212529;
   display: flex;
   font-family: 'ChosunilboNM', Georgia, 'Times New Roman', serif;
   font-size: 15px;
   font-weight: 700;
   justify-content: space-between;
-  padding: 9px 14px;
+  padding: 10px 14px;
 }
 
 /* ── 가로 스크롤 영역 ── */
@@ -255,34 +254,43 @@
 .rtf-metric-cell { white-space: nowrap; }
 
 /* ── 행 스타일 ── */
-.rtf-h-row.level-0 {
-  background: #f0f2f4;
+
+/* 총합계 행 */
+.rtf-h-row.is-total td {
+  background: #fff;
+  border-top: 2px solid #212529 !important;
+  border-bottom: 2px solid #212529 !important;
+  color: #212529;
+  font-size: 13px;
   font-weight: 800;
+  padding: 8px 7px;
 }
 
-.rtf-h-row.level-1 {
-  background: #f8f9fa;
+/* 1단계 소계 (사업부/플랜트/유형 계) */
+.rtf-h-row.level-0 {
+  background: #f4f6f8;
   font-weight: 700;
 }
 
-.rtf-h-row.level-2,
-.rtf-h-row.level-3 {
-  background: #fff;
-  font-weight: 400;
+.rtf-h-row.level-0 td {
+  padding-top: 6px;
+  padding-bottom: 6px;
 }
 
+/* 2단계 이하 */
+.rtf-h-row.level-1 {
+  background: #fafbfc;
+  font-weight: 600;
+}
+
+.rtf-h-row.level-2,
+.rtf-h-row.level-3,
 .rtf-h-row.level-4 {
   background: #fff;
   font-weight: 400;
 }
 
-.rtf-h-row.level-0 td,
-.rtf-h-row.level-1 td {
-  padding-top: 6px;
-  padding-bottom: 6px;
-}
-
-.rtf-h-row:hover td {
+.rtf-h-row:not(.is-total):hover td {
   background: #f0f5ff !important;
 }
 

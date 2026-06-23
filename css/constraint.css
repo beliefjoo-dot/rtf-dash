@@ -293,8 +293,8 @@
 }
 
 .cst-detail-head th {
-  background: #3b404a;
-  color: #fff;
+  background: #e4e8f0;
+  color: #2d3748;
   font-size: 11px;
   font-weight: 700;
 }
@@ -314,17 +314,15 @@
   background: #f3f6fc;
 }
 
-/* 정보 영역 헤더 (dark bg 위에서 배경 변경 없이 정렬만) */
+/* 정보 영역 헤더 — 수량 헤더보다 약간 어두워 정보/수량 구분 유지 */
 .cst-detail-head th.cst-dtl-info-h {
-  background: #2d3039;
+  background: #d8dfe9;
 }
 
-/* 단위 컬럼 — 정보 영역 오른쪽 구분선 */
+/* 단위 컬럼 — 정보↔수량 구분선만 유지, 색상은 일반 컬럼과 동일하게 */
 .cst-detail-head th.cst-dtl-unit,
 .cst-detail-data-row td.cst-dtl-unit {
   border-right: 2px solid #b0bdd0 !important;
-  color: #6b7280;
-  font-size: 11px;
 }
 
 /* 정렬 */
@@ -342,17 +340,18 @@
   text-align: right !important;
 }
 
-/* 월별 헤더 */
+/* 월별 헤더 — 메인 표보다 연하게 */
 .cst-dtl-month {
-  background: #24272b;
-  border-left: 2px solid #94a3b8 !important;
-  font-size: 13px;
+  background: #e4e8f0;
+  border-left: 2px solid #b0bdd0 !important;
+  color: #2d3748;
+  font-size: 12px;
   font-weight: 700;
 }
 
 .cst-dtl-sub {
-  background: #30343a;
-  color: #f8f9fa;
+  background: #eceff5;
+  color: #374151;
   font-size: 11px;
   font-weight: 700;
 }

@@ -7,9 +7,22 @@ var rtfSortState = {
 var _rtfItems = []; // 정렬 재빌드용 캐시
 
 // ── 컬럼 공통 메타 ────────────────────────────────────────────────────────────
+var GRID_COL_WIDTH = 82;
+var NAME_COL_WIDTH = 220;
+var RTF_SECTION_OPTIONS = [
+  { mode:"business", label:"사업부별", title:"01. 사업부별", sectionId:"rtfBusinessMatrix" },
+  { mode:"plant",    label:"플랜트별", title:"02. 플랜트별", sectionId:"rtfPlantMatrix" },
+  { mode:"type",     label:"유형별",   title:"03. 유형별",   sectionId:"rtfTypeMatrix" },
+];
+var PLANT_NAME_MAP = {
+  "1210": "향남",
+  "1220": "나보타",
+  "1230": "오송",
+  "1240": "횡성",
+};
 var METRIC_WIDTHS = {
-  "판매계획":75, "RTF":75, "Shortage":80,
-  "매출":75, "매출차질예상":90, "기말재고":75, "재고일수":75,
+  "판매계획":GRID_COL_WIDTH, "RTF":GRID_COL_WIDTH, "Shortage":GRID_COL_WIDTH,
+  "매출":GRID_COL_WIDTH, "매출차질예상":GRID_COL_WIDTH, "기말재고":GRID_COL_WIDTH, "재고일수":GRID_COL_WIDTH,
 };
 // 기본(축소) 모드에서 월별 하위 컬럼 표시명
 var METRIC_DISPLAY_SHORT = { "판매계획":"판매", "Shortage":"부족" };
@@ -32,6 +45,25 @@ function hasMasterGap(item) {
   return true;
 }
 
+function itemPlantKey(code, plant) {
+  return `${cleanOptional(code)}|${cleanOptional(plant)}`;
+}
+
+function monthDays(month) {
+  const [year, mon] = String(month).split("-").map(Number);
+  if (!Number.isFinite(year) || !Number.isFinite(mon)) return 30;
+  return new Date(year, mon, 0).getDate();
+}
+
+function amountWithCost(qty, item) {
+  return Number.isFinite(qty) && item.hasCost ? qty * item.standardCost : null;
+}
+
+function displayPlantName(plantCode) {
+  const code = cleanOptional(plantCode);
+  return PLANT_NAME_MAP[code] || code || NEED_MASTER;
+}
+
 function computeRtfItems() {
   const planRows      = state.mappedData.plan_monthly;
   const inventoryRows = state.mappedData.inventory_base;
@@ -41,68 +73,75 @@ function computeRtfItems() {
 
   inventoryRows.forEach((row) => {
     const code = cleanOptional(row.itemCode);
-    if (!code) return;
-    inventorySet.add(code);
+    const plant = cleanOptional(row.plant);
+    if (!code || !plant) return;
+    const key = itemPlantKey(code, plant);
+    inventorySet.add(key);
     const cost = cleanNumber(row.standardCost), baseQty = cleanNumber(row.baseQty);
-    if (cost !== null && cost > 0 && !costMap.has(code)) costMap.set(code, cost);
-    baseQtyMap.set(code, (baseQtyMap.get(code) ?? 0) + (baseQty ?? 0));
+    if (cost !== null && cost > 0 && !costMap.has(key)) costMap.set(key, cost);
+    baseQtyMap.set(key, (baseQtyMap.get(key) ?? 0) + (baseQty ?? 0));
   });
   masterRows.forEach((row) => {
     const code = cleanOptional(row.itemCode);
     if (code && !masterMap.has(code)) masterMap.set(code, row);
   });
   planRows.forEach((row) => {
-    const code = cleanOptional(row.itemCode), month = cleanOptional(row.month);
-    if (!code || !month) return;
-    planLookup.set(`${code}|${month}`, row);
-    if (!metaMap.has(code))
-      metaMap.set(code, { itemCode: code, itemName: cleanText(row.itemName, code), plant: cleanOptional(row.plant), itemType: cleanOptional(row.itemType) });
+    const code = cleanOptional(row.itemCode), plant = cleanOptional(row.plant), month = cleanOptional(row.month);
+    if (!code || !plant || !month) return;
+    const key = itemPlantKey(code, plant);
+    const planKey = `${key}|${month}`;
+    const current = planLookup.get(planKey);
+    if (current) {
+      current.salesQty = (cleanNumber(current.salesQty) ?? 0) + (cleanNumber(row.salesQty) ?? 0);
+      current.supplyQty = (cleanNumber(current.supplyQty) ?? 0) + (cleanNumber(row.supplyQty) ?? 0);
+    } else {
+      planLookup.set(planKey, { ...row });
+    }
+    if (!metaMap.has(key))
+      metaMap.set(key, { itemCode: code, itemName: cleanText(row.itemName, code), plant, itemType: cleanOptional(row.itemType) });
   });
 
   return [...metaMap.values()].map((meta) => {
-    const master = masterMap.get(meta.itemCode), standardCost = costMap.get(meta.itemCode) ?? null;
+    const key = itemPlantKey(meta.itemCode, meta.plant);
+    const master = masterMap.get(meta.itemCode), standardCost = costMap.get(key) ?? null;
     const item = { ...meta,
-      plant: cleanText(meta.plant, NEED_MASTER), businessUnit: cleanText(master?.businessUnit, NEED_MASTER),
+      plantCode: cleanText(meta.plant, NEED_MASTER), plant: displayPlantName(meta.plant), businessUnit: cleanText(master?.businessUnit, NEED_MASTER),
       itemGroup: cleanText(master?.itemGroup, NEED_MASTER), standardCost,
       hasCost: standardCost !== null && standardCost > 0,
-      hasInventory: inventorySet.has(meta.itemCode), baseQty: baseQtyMap.get(meta.itemCode) ?? null,
+      hasInventory: inventorySet.has(key), baseQty: inventorySet.has(key) ? (baseQtyMap.get(key) ?? 0) : null,
     };
     item.typeGroup = itemTypeGroup(item);
-    let runningQty = item.baseQty;
+    let openingQty = item.baseQty;
     const masterGap = hasMasterGap(item);
 
     item.monthlyStatus = getRtfMonths().map((month) => {
-      const plan = planLookup.get(`${item.itemCode}|${month}`);
-      const salesQty = cleanNumber(plan?.salesQty), supplyQty = cleanNumber(plan?.supplyQty);
-      const noSalesPlan = !plan || salesQty === null || salesQty <= 0;
-      const salesAmount = salesQty !== null && salesQty > 0 && item.hasCost ? salesQty * item.standardCost : null;
+      const plan = planLookup.get(`${key}|${month}`);
+      const hasPlanRow = Boolean(plan);
+      const salesQty = hasPlanRow ? (cleanNumber(plan.salesQty) ?? 0) : null;
+      const supplyQty = hasPlanRow ? (cleanNumber(plan.supplyQty) ?? 0) : null;
+      const noSalesPlan = hasPlanRow && salesQty === 0;
+      const salesPlanAmount = amountWithCost(salesQty, item);
       let endingQty = null, endingAmount = null, rtfQty = null, rtfAmount = null;
       let shortageQty = null, shortageAmount = null, lostSalesAmount = null, inventoryDays = null;
-      let status = STATUS.UNKNOWN, reason = "";
+      let salesAmount = null, status = STATUS.UNKNOWN, reason = "";
 
-      if (runningQty === null)      { reason = NEED_DATA; }
-      else if (masterGap)           { reason = NEED_MASTER; }
-      else if (noSalesPlan) {
-        reason = NO_PLAN;
-        if (supplyQty !== null) { runningQty += supplyQty; endingQty = runningQty; }
-        rtfQty = 0; rtfAmount = item.hasCost ? 0 : null;
-        endingAmount = item.hasCost && endingQty !== null ? Math.max(0, endingQty) * item.standardCost : null;
-      } else if (supplyQty === null) { reason = NEED_DATA; }
+      if (!item.hasInventory || openingQty === null) { reason = NEED_DATA; }
+      else if (!hasPlanRow)                          { reason = NEED_DATA; openingQty = null; }
+      else if (masterGap)                            { reason = NEED_MASTER; }
       else {
-        runningQty  = runningQty + supplyQty - salesQty;
-        endingQty   = runningQty;
-        shortageQty = endingQty < 0 ? Math.abs(endingQty) : 0;
-        rtfQty      = Math.max(0, salesQty - shortageQty);
-        rtfAmount   = item.hasCost ? rtfQty * item.standardCost : null;
-        shortageAmount = shortageQty > 0 && item.hasCost ? shortageQty * item.standardCost : null;
-        lostSalesAmount = shortageAmount;
-        endingAmount    = item.hasCost ? Math.max(0, endingQty) * item.standardCost : null;
-        inventoryDays   = salesQty > 0 && endingQty >= 0 ? (endingQty / salesQty) * 30 : null;
-        if (shortageQty > 0)           status = STATUS.SHORTAGE;
-        else if (endingQty < salesQty) status = STATUS.WARN;
-        else                           status = STATUS.OK;
+        const availableQty = openingQty + supplyQty;
+        rtfQty = Math.min(salesQty, availableQty);
+        shortageQty = Math.max(salesQty - availableQty, 0);
+        endingQty = Math.max(availableQty - salesQty, 0);
+        rtfAmount = amountWithCost(rtfQty, item);
+        shortageAmount = shortageQty > 0 ? amountWithCost(shortageQty, item) : 0;
+        endingAmount = amountWithCost(endingQty, item);
+        inventoryDays = salesQty > 0 ? endingQty / (salesQty / monthDays(month)) : null;
+        status = shortageQty > 0 ? STATUS.SHORTAGE : STATUS.OK;
+        openingQty = endingQty;
+        reason = noSalesPlan ? NO_PLAN : "";
       }
-      return { month, salesQty, supplyQty, rtfQty, rtfAmount, endingQty, endingAmount, shortageQty, shortageAmount, lostSalesAmount, inventoryDays, salesAmount, status, reason, noSalesPlan };
+      return { month, salesQty, supplyQty, rtfQty, rtfAmount, endingQty, endingAmount, shortageQty, shortageAmount, lostSalesAmount, inventoryDays, salesAmount, salesPlanAmount, status, reason, noSalesPlan };
     });
     return item;
   }).filter((item) => item.typeGroup === "상품" || item.typeGroup === "완제품");
@@ -119,18 +158,25 @@ function aggregateMonth(items, monthIndex) {
   const rows = items.map((i) => i.monthlyStatus[monthIndex]);
   const status = rows.reduce((w, r) => higherSeverity(w, r.status), STATUS.OK);
   const hasNoPlan = rows.every((r) => r.noSalesPlan);
+  const salesQty = sumNullable(rows.map((r) => r.salesQty));
+  const endingQty = sumNullable(rows.map((r) => r.endingQty));
+  const month = rows[0]?.month;
+  const inventoryDays = Number.isFinite(salesQty) && salesQty > 0 && Number.isFinite(endingQty)
+    ? endingQty / (salesQty / monthDays(month))
+    : null;
   return {
     status: hasNoPlan ? STATUS.UNKNOWN : status,
-    salesQty:        sumNullable(rows.map((r) => r.salesQty)),
+    salesQty,
     rtfQty:          sumNullable(rows.map((r) => r.rtfQty)),
     shortageQty:     sumNullable(rows.map((r) => r.shortageQty)),
     salesAmount:     sumNullable(rows.map((r) => r.salesAmount)),
+    salesPlanAmount: sumNullable(rows.map((r) => r.salesPlanAmount)),
     rtfAmount:       sumNullable(rows.map((r) => r.rtfAmount)),
     shortageAmount:  sumNullable(rows.map((r) => r.shortageAmount)),
     lostSalesAmount: sumNullable(rows.map((r) => r.lostSalesAmount)),
     endingAmount:    sumNullable(rows.map((r) => r.endingAmount)),
-    endingQty:       sumNullable(rows.map((r) => r.endingQty)),
-    inventoryDays:   null,
+    endingQty,
+    inventoryDays,
     hasNoPlan,
   };
 }
@@ -141,6 +187,9 @@ function makeNode(id, parentId, level, kind, label, items, cols = {}) {
 }
 function sortKo(arr) { return [...arr].sort((a, b) => String(a).localeCompare(String(b), "ko-KR")); }
 function uniq(items, key) { return sortKo([...new Set(items.map((i) => i[key]))]); }
+function itemNodeId(groupId, item, index) {
+  return `${groupId}|${item.itemCode}|${item.plant}|${index}`;
+}
 
 function buildHierarchy(items, mode) {
   const nodes = [];
@@ -155,7 +204,7 @@ function buildHierarchy(items, mode) {
         uniq(typeItems, "itemGroup").forEach((group) => {
           const groupItems = typeItems.filter((i) => i.itemGroup === group), groupId = `${typeId}|${group}`;
           nodes.push(makeNode(groupId, typeId, 2, "itemGroup", `${group} 계`, groupItems, { div:"품목군", bu, plant:"", type, group, code:"" }));
-          groupItems.forEach((item) => nodes.push(makeNode(`${groupId}|${item.itemCode}`, groupId, 3, "item", item.itemName, [item],
+          groupItems.forEach((item, itemIndex) => nodes.push(makeNode(itemNodeId(groupId, item, itemIndex), groupId, 3, "item", item.itemName, [item],
             { div:"자재", bu:item.businessUnit, plant:item.plant, type:item.typeGroup, group:item.itemGroup, code:item.itemCode })));
         });
       });
@@ -171,7 +220,7 @@ function buildHierarchy(items, mode) {
         uniq(typeItems, "itemGroup").forEach((group) => {
           const groupItems = typeItems.filter((i) => i.itemGroup === group), groupId = `${typeId}|${group}`;
           nodes.push(makeNode(groupId, typeId, 2, "itemGroup", `${group} 계`, groupItems, { div:"품목군", bu:"", plant, type, group, code:"" }));
-          groupItems.forEach((item) => nodes.push(makeNode(`${groupId}|${item.itemCode}`, groupId, 3, "item", item.itemName, [item],
+          groupItems.forEach((item, itemIndex) => nodes.push(makeNode(itemNodeId(groupId, item, itemIndex), groupId, 3, "item", item.itemName, [item],
             { div:"자재", bu:item.businessUnit, plant:item.plant, type:item.typeGroup, group:item.itemGroup, code:item.itemCode })));
         });
       });
@@ -190,7 +239,7 @@ function buildHierarchy(items, mode) {
           uniq(plantItems, "itemGroup").forEach((group) => {
             const groupItems = plantItems.filter((i) => i.itemGroup === group), groupId = `${plantId}|${group}`;
             nodes.push(makeNode(groupId, plantId, 3, "itemGroup", `${group} 계`, groupItems, { div:"품목군", bu, plant, type, group, code:"" }));
-            groupItems.forEach((item) => nodes.push(makeNode(`${groupId}|${item.itemCode}`, groupId, 4, "item", item.itemName, [item],
+            groupItems.forEach((item, itemIndex) => nodes.push(makeNode(itemNodeId(groupId, item, itemIndex), groupId, 4, "item", item.itemName, [item],
               { div:"자재", bu:item.businessUnit, plant:item.plant, type:item.typeGroup, group:item.itemGroup, code:item.itemCode })));
           });
         });
@@ -269,30 +318,30 @@ function getLeftColDefs(mode) {
   if (compressed) {
     // 기본: 발표용 — 핵심 컬럼만
     defs = [
-      { key: firstKey, label: firstLabel, width: 120, align: "center", isFirst: true },
-      { key: "base",   label: "기초재고", width: 90,  align: "right",  isBase: true, isLast: true },
+      { key: firstKey, label: firstLabel, width: GRID_COL_WIDTH, align: "center", isFirst: true },
+      { key: "base",   label: "기초재고", width: GRID_COL_WIDTH, align: "right",  isBase: true, isLast: true },
     ];
   } else {
     // 확대: 분석용 — 섹션별 상세 컬럼
     let mid = [];
     if (mode === "business" || mode === "plant") {
       mid = [
-        { key: "type",  label: "유형",   width: 80,  align: "center" },
-        { key: "group", label: "품목군", width: 130, align: "left", isToggle: true },
+        { key: "type",  label: "유형",   width: GRID_COL_WIDTH, align: "center" },
+        { key: "group", label: "품목군", width: GRID_COL_WIDTH, align: "left", isToggle: true },
       ];
     } else { // type
       mid = [
-        { key: "bu",    label: "사업부", width: 90,  align: "center" },
-        { key: "plant", label: "플랜트", width: 90,  align: "center" },
-        { key: "group", label: "품목군", width: 130, align: "left", isToggle: true },
+        { key: "bu",    label: "사업부", width: GRID_COL_WIDTH, align: "center" },
+        { key: "plant", label: "플랜트", width: GRID_COL_WIDTH, align: "center" },
+        { key: "group", label: "품목군", width: GRID_COL_WIDTH, align: "left", isToggle: true },
       ];
     }
     defs = [
-      { key: firstKey, label: firstLabel, width: 120, align: "center", isFirst: true },
+      { key: firstKey, label: firstLabel, width: GRID_COL_WIDTH, align: "center", isFirst: true },
       ...mid,
-      { key: "code",   label: "자재코드", width: 90,  align: "center" },
-      { key: "name",   label: "자재명",   width: 220, align: "left",  isName: true },
-      { key: "base",   label: "기초재고", width: 90,  align: "right", isBase: true, isLast: true },
+      { key: "code",   label: "자재코드", width: GRID_COL_WIDTH, align: "center" },
+      { key: "name",   label: "자재명",   width: NAME_COL_WIDTH, align: "left",  isName: true },
+      { key: "base",   label: "기초재고", width: GRID_COL_WIDTH, align: "right", isBase: true, isLast: true },
     ];
   }
   // 누적 sticky left 좌표 계산
@@ -310,6 +359,10 @@ function getTableMinWidth(leftColDefs) {
 // ── 상태 표시 ─────────────────────────────────────────────────────────────────
 function statusClass(status) {
   return { 대응가능:"ok", 주의:"warn", 공급부족:"shortage", 판단불가:"unknown" }[status] ?? "unknown";
+}
+
+function activeRtfSection() {
+  return RTF_SECTION_OPTIONS.find((option) => option.mode === state.rtfSectionMode) || RTF_SECTION_OPTIONS[0];
 }
 
 // ── 포맷 헬퍼 ────────────────────────────────────────────────────────────────
@@ -332,7 +385,7 @@ function formatBaseForNode(node, compressed) {
   const qty = sumNullable(node.items.map((i) => i.baseQty));
   if (state.rtfDisplayMode === "qty") {
     if (!Number.isFinite(qty)) return compressed ? SHORT_TEXT[NEED_DATA] : NEED_DATA;
-    return formatNumber(qty, 1);
+    return formatNumber(qty);
   }
   if (node.items.some((i) => !i.hasCost || !Number.isFinite(i.baseQty)))
     return compressed ? SHORT_TEXT[NEED_DATA] : NEED_DATA;
@@ -343,15 +396,14 @@ function formatBaseForNode(node, compressed) {
 // ── 셀 렌더 ──────────────────────────────────────────────────────────────────
 function renderMetricCell(row, metric, metricIndex, compressed) {
   const mb     = metricIndex === 0 ? " rtf-month-start" : "";
-  const noPlan = row.hasNoPlan || row.noSalesPlan;
 
   if (metric === "판매계획") {
-    const raw  = formatDisplayQtyMoney(row.salesQty, row.salesAmount, noPlan);
+    const raw  = formatDisplayQtyMoney(row.salesQty, row.salesPlanAmount, false);
     const disp = compressed ? (SHORT_TEXT[raw] || raw) : raw;
     return `<td class="rtf-metric-cell rtf-cell-right${mb}" title="${escapeHtml(raw)}">${escapeHtml(disp)}</td>`;
   }
   if (metric === "RTF") {
-    const raw  = formatDisplayQtyMoney(row.rtfQty, row.rtfAmount, noPlan);
+    const raw  = formatDisplayQtyMoney(row.rtfQty, row.rtfAmount, false);
     const disp = compressed ? (SHORT_TEXT[raw] || raw) : raw;
     return `<td class="rtf-metric-cell rtf-rtf-cell rtf-status-text ${statusClass(row.status)} rtf-cell-right${mb}" title="${escapeHtml(raw)}">${escapeHtml(disp)}</td>`;
   }
@@ -359,14 +411,18 @@ function renderMetricCell(row, metric, metricIndex, compressed) {
     const isAmt = state.rtfDisplayMode === "amount";
     const hasS  = isAmt ? (Number.isFinite(row.shortageAmount) && row.shortageAmount > 0)
                         : (Number.isFinite(row.shortageQty)    && row.shortageQty    > 0);
-    const raw = hasS ? (isAmt ? formatMoney(row.shortageAmount) : formatNumber(row.shortageQty)) : "-";
+    const raw = hasS ? `-${isAmt ? formatMoney(row.shortageAmount) : formatNumber(row.shortageQty)}` : "-";
     return `<td class="rtf-metric-cell rtf-shortage-cell ${hasS ? "rtf-status-text shortage" : "rtf-neutral-text"} rtf-cell-right${mb}">${escapeHtml(raw)}</td>`;
   }
-  if (metric === "매출")
-    return `<td class="rtf-metric-cell rtf-muted-metric rtf-cell-right${mb}">${escapeHtml(Number.isFinite(row.salesAmount) ? formatMoney(row.salesAmount) : NEED_DATA)}</td>`;
+  if (metric === "매출") {
+    const raw = Number.isFinite(row.salesAmount) ? formatMoney(row.salesAmount) : NEED_DATA;
+    const disp = compressed ? (SHORT_TEXT[raw] || raw) : raw;
+    return `<td class="rtf-metric-cell rtf-muted-metric rtf-cell-right${mb}" title="${escapeHtml(raw)}">${escapeHtml(disp)}</td>`;
+  }
   if (metric === "매출차질예상") {
-    const val = Number.isFinite(row.lostSalesAmount) && row.lostSalesAmount > 0 ? formatMoney(row.lostSalesAmount) : "-";
-    return `<td class="rtf-metric-cell ${val !== "-" ? "rtf-status-text shortage" : "rtf-neutral-text"} rtf-cell-right${mb}">${escapeHtml(val)}</td>`;
+    const raw = Number.isFinite(row.lostSalesAmount) ? formatMoney(row.lostSalesAmount) : NEED_DATA;
+    const disp = compressed ? (SHORT_TEXT[raw] || raw) : raw;
+    return `<td class="rtf-metric-cell rtf-muted-metric rtf-cell-right${mb}" title="${escapeHtml(raw)}">${escapeHtml(disp)}</td>`;
   }
   if (metric === "기말재고")
     return `<td class="rtf-metric-cell rtf-muted-metric rtf-cell-right${mb}">${escapeHtml(formatEnding(row))}</td>`;
@@ -378,7 +434,86 @@ function renderMetricCell(row, metric, metricIndex, compressed) {
 }
 
 // ── 행 렌더 ──────────────────────────────────────────────────────────────────
-function renderHierarchyRow(node, leftColDefs, compressed) {
+function visibleLeftValue(node, col, mode) {
+  if (col.isBase || col.isName || node.kind === "total") return null;
+  if (mode === "business") {
+    if (col.key === "bu") return node.level === 0 ? node.cols.bu : "";
+    if (col.key === "type") return node.level === 1 ? node.cols.type : "";
+    if (col.key === "group") return node.level === 2 ? node.cols.group : "";
+  } else if (mode === "plant") {
+    if (col.key === "plant") return node.level === 0 ? node.cols.plant : "";
+    if (col.key === "type") return node.level === 1 ? node.cols.type : "";
+    if (col.key === "group") return node.level === 2 ? node.cols.group : "";
+  } else {
+    if (col.key === "type") return node.level === 0 ? node.cols.type : "";
+    if (col.key === "bu") return node.level === 1 ? node.cols.bu : "";
+    if (col.key === "plant") return node.level === 2 ? node.cols.plant : "";
+    if (col.key === "group") return node.level === 3 ? node.cols.group : "";
+  }
+  if (col.key === "code") return node.kind === "item" ? node.cols.code : "";
+  return node.cols[col.key] || "";
+}
+
+function displayNodeLabel(node) {
+  if (node.kind === "total") return "총합계";
+  return String(node.label ?? "").replace(/\s*계$/, "");
+}
+
+function mergeKeyForColumn(node, col, mode) {
+  if (node.kind === "total" || col.isBase || col.isName || col.key === "code") return "";
+  const value = node.cols[col.key] || "";
+  if (!value) return "";
+  if (mode === "business") {
+    if (col.key === "bu") return `bu|${node.cols.bu}`;
+    if (col.key === "type") return `bu|${node.cols.bu}|type|${node.cols.type}`;
+    if (col.key === "group") return `bu|${node.cols.bu}|type|${node.cols.type}|group|${node.cols.group}`;
+  } else if (mode === "plant") {
+    if (col.key === "plant") return `plant|${node.cols.plant}`;
+    if (col.key === "type") return `plant|${node.cols.plant}|type|${node.cols.type}`;
+    if (col.key === "group") return `plant|${node.cols.plant}|type|${node.cols.type}|group|${node.cols.group}`;
+  } else {
+    if (col.key === "type") return `type|${node.cols.type}`;
+    if (col.key === "bu") return `type|${node.cols.type}|bu|${node.cols.bu}`;
+    if (col.key === "plant") return `type|${node.cols.type}|bu|${node.cols.bu}|plant|${node.cols.plant}`;
+    if (col.key === "group") return `type|${node.cols.type}|bu|${node.cols.bu}|plant|${node.cols.plant}|group|${node.cols.group}`;
+  }
+  return "";
+}
+
+function isVisibleRtfNode(node, compressed) {
+  if (node.kind === "total") return true;
+  if (compressed) return node.level === 0;
+  return !(node.kind === "item" && !state.expandedItemGroups.has(node.parentId));
+}
+
+function getRowspanMap(nodes, leftColDefs, compressed, mode) {
+  const spans = new Map();
+  const skip = new Set();
+  if (compressed) return { spans, skip };
+  const visibleNodes = nodes.filter((node) => isVisibleRtfNode(node, compressed));
+  leftColDefs.forEach((col) => {
+    if (col.isBase || col.isName || col.key === "code") return;
+    for (let index = 0; index < visibleNodes.length; index += 1) {
+      const node = visibleNodes[index];
+      const key = mergeKeyForColumn(node, col, mode);
+      if (!key) continue;
+      let span = 1;
+      for (let cursor = index + 1; cursor < visibleNodes.length; cursor += 1) {
+        const next = visibleNodes[cursor];
+        if (mergeKeyForColumn(next, col, mode) !== key) break;
+        span += 1;
+      }
+      if (span > 1) {
+        spans.set(`${node.id}|${col.key}`, span);
+        for (let offset = 1; offset < span; offset += 1) skip.add(`${visibleNodes[index + offset].id}|${col.key}`);
+      }
+      index += span - 1;
+    }
+  });
+  return { spans, skip };
+}
+
+function renderHierarchyRow(node, leftColDefs, compressed, mode, rowspanMap) {
   const isTotal     = node.kind === "total";
   const isItem      = node.kind === "item";
   const isItemGroup = node.kind === "itemGroup";
@@ -390,15 +525,20 @@ function renderHierarchyRow(node, leftColDefs, compressed) {
     return monthCols.map((metric, colIdx) => renderMetricCell(monthRow, metric, colIdx, compressed)).join("");
   }).join("");
 
-  const leftCells = leftColDefs.map(col => {
+  const leftCells = [];
+  for (let colIndex = 0; colIndex < leftColDefs.length; colIndex += 1) {
+    const col = leftColDefs[colIndex];
+    const cellKey = `${node.id}|${col.key}`;
+    if (rowspanMap?.skip.has(cellKey)) continue;
     let value;
     if (col.isBase) {
       value = formatBaseForNode(node, compressed);
     } else if (col.isName) {
-      value = node.label;
+      value = displayNodeLabel(node);
     } else {
-      const raw = node.cols[col.key] || "";
-      value = (col.isFirst && !raw) ? node.label : raw; // 총합계 행 fallback
+      const explicitValue = visibleLeftValue(node, col, mode);
+      const raw = explicitValue === null ? (node.cols[col.key] || "") : explicitValue;
+      value = (isTotal && col.isFirst && !raw) ? displayNodeLabel(node) : raw; // 총합계 행 fallback
     }
     const toggleBtn = (col.isToggle && isItemGroup && !compressed)
       ? `<button type="button" class="rtf-item-toggle" data-node-id="${escapeHtml(node.id)}">${state.expandedItemGroups.has(node.id) ? "-" : "+"}</button>`
@@ -406,12 +546,32 @@ function renderHierarchyRow(node, leftColDefs, compressed) {
     const alignCls  = col.align === "left" ? "rtf-cell-left" : col.align === "right" ? "rtf-cell-right" : "rtf-cell-center";
     const extraCls  = col.isName ? " rtf-col-name" : col.isLast ? " rtf-col-last-sticky" : "";
     const titleAttr = col.isName ? ` title="${escapeHtml(node.label)}"` : "";
-    return `<td class="rtf-sticky ${alignCls}${extraCls}" style="left:${col.left}px;width:${col.width}px;"${titleAttr}>${toggleBtn}${escapeHtml(value)}</td>`;
-  }).join("");
+    const rowspan = rowspanMap?.spans.has(cellKey) ? ` rowspan="${rowspanMap.spans.get(cellKey)}"` : "";
+    const mergeCls = rowspan ? " rtf-rowspan-cell" : "";
+    const isTotalLabelCell = isTotal && colIndex === 0;
+    const codeIndex = leftColDefs.findIndex((entry) => entry.key === "code");
+    const nameIndex = leftColDefs.findIndex((entry) => entry.isName);
+    const isSubtotalLabelCell = !isItem && !isTotal && !compressed && colIndex === codeIndex && nameIndex === codeIndex + 1;
+    if (isTotalLabelCell) {
+      const baseIndex = leftColDefs.findIndex((entry) => entry.isBase);
+      const spanCount = baseIndex > 0 ? baseIndex : 1;
+      const spanWidth = leftColDefs.slice(0, spanCount).reduce((sum, entry) => sum + entry.width, 0);
+      leftCells.push(`<td class="rtf-sticky rtf-cell-left rtf-merged-label" style="left:0;width:${spanWidth}px;" colspan="${spanCount}">${escapeHtml(displayNodeLabel(node))}</td>`);
+      colIndex += spanCount - 1;
+      continue;
+    }
+    if (isSubtotalLabelCell) {
+      const spanWidth = leftColDefs[colIndex].width + leftColDefs[nameIndex].width;
+      leftCells.push(`<td class="rtf-sticky rtf-cell-center rtf-col-name rtf-merged-label rtf-empty-merged-label" style="left:${col.left}px;width:${spanWidth}px;" colspan="2" aria-label="${escapeHtml(displayNodeLabel(node))}"></td>`);
+      colIndex = nameIndex;
+      continue;
+    }
+    leftCells.push(`<td class="rtf-sticky ${alignCls}${extraCls}${mergeCls}" style="left:${col.left}px;width:${col.width}px;"${titleAttr}${rowspan}>${toggleBtn}${escapeHtml(value)}</td>`);
+  }
 
   const kindCls = isTotal ? "is-total" : (isItem ? "is-item" : "is-group");
   return `<tr class="rtf-h-row level-${node.level} ${kindCls}" data-node-id="${escapeHtml(node.id)}" data-parent-id="${escapeHtml(node.parentId)}"${isHidden ? " hidden" : ""}>
-    ${leftCells}${cells}
+    ${leftCells.join("")}${cells}
   </tr>`;
 }
 
@@ -424,8 +584,9 @@ function renderMatrixSection(title, mode, items, sectionId) {
   const minWidth    = getTableMinWidth(leftColDefs);
   const colCount    = leftColDefs.length + months.length * monthCols.length;
   const nodes       = sortHierarchyNodes(buildHierarchy(items, mode), sectionId);
+  const rowspanMap = getRowspanMap(nodes, leftColDefs, compressed, mode);
   const body        = nodes.length
-    ? nodes.map(n => renderHierarchyRow(n, leftColDefs, compressed)).join("")
+    ? nodes.map(n => renderHierarchyRow(n, leftColDefs, compressed, mode, rowspanMap)).join("")
     : `<tr><td colspan="${colCount}" class="rtf-empty">데이터 없음</td></tr>`;
 
   // colgroup: 좌측(inline width) + 월별 지표
@@ -469,7 +630,7 @@ function renderMatrixSection(title, mode, items, sectionId) {
   return `<section id="${escapeHtml(sectionId)}" class="rtf-card rtf-block rtf-matrix-block">
     <div class="rtf-sec-title">${escapeHtml(title)}</div>
     <div class="rtf-h-scroll">
-      <table class="rtf-h-matrix-table" style="min-width:${minWidth}px;">
+      <table class="rtf-h-matrix-table${compressed ? " is-compressed" : ""}" style="min-width:${minWidth}px;${compressed ? "width:100%;" : ""}">
         <colgroup>${colgroup}</colgroup>
         <thead>
           <tr>${leftHeaders}${monthHeader}</tr>
@@ -492,6 +653,17 @@ function renderRtf() {
   const match  = checkTotalsMatch(items);
   const verifyHtml = match === null ? "" :
     match ? `<span class="rtf-verify-ok">총합계 일치</span>` : `<span class="rtf-verify-err">총합계 불일치 확인 필요</span>`;
+  const firstMonth = aggregateMonth(items, 0);
+  const firstShortage = state.rtfDisplayMode === "amount" ? firstMonth.shortageAmount : firstMonth.shortageQty;
+  const summaryUnit = state.rtfDisplayMode === "amount" ? "" : "개";
+  const summaryLine = `${monthLabel(months[0])} 총 판매계획 <b>${escapeHtml(formatDisplayQtyMoney(firstMonth.salesQty, firstMonth.salesPlanAmount))}${summaryUnit}</b>, RTF <b>${escapeHtml(formatDisplayQtyMoney(firstMonth.rtfQty, firstMonth.rtfAmount))}${summaryUnit}</b>. ${Number.isFinite(firstShortage) && firstShortage > 0 ? `<span class="rtf-alert-text">Shortage ${escapeHtml(state.rtfDisplayMode === "amount" ? formatMoney(firstShortage) : formatNumber(firstShortage) + summaryUnit)}</span>` : `<span class="rtf-ok-text">Shortage 없음</span>`}`;
+  const activeSection = activeRtfSection();
+  const sectionTabs = state.rtfExpanded ? RTF_SECTION_OPTIONS.map((option) =>
+    `<button type="button" class="rtf-section-tab ${activeSection.mode === option.mode ? "active" : ""}" data-rtf-section="${escapeHtml(option.mode)}">${escapeHtml(option.label)}</button>`
+  ).join("") : "";
+  const sectionHtml = state.rtfExpanded
+    ? renderMatrixSection(activeSection.title, activeSection.mode, items, activeSection.sectionId)
+    : RTF_SECTION_OPTIONS.map((option) => renderMatrixSection(option.title, option.mode, items, option.sectionId)).join("");
 
   return `<div class="rtf-screen rtf-excel-layout">
     <section class="rtf-card rtf-top">
@@ -500,19 +672,20 @@ function renderRtf() {
         기준월: ${escapeHtml(months[0])} | 대상기간: ${escapeHtml(months.map(monthLabel).join(" ~ "))} | 표시: ${state.rtfDisplayMode === "qty" ? "수량" : "금액"}
         ${verifyHtml}
       </div>
-      <div class="rtf-insight">RTF 컬럼은 판매계획 대비 공급 가능 수량(또는 금액)입니다. 부족 발생 시 부족 수량(또는 금액)을 표시합니다.</div>
+      <div class="rtf-insight">${summaryLine}</div>
     </section>
     <div class="rtf-toolbar">
+      ${state.rtfExpanded ? `<div class="rtf-section-tabs" aria-label="RTF 보기 기준">
+        ${sectionTabs}
+      </div>` : ""}
       <div class="rtf-mode-group" aria-label="표시 단위">
         <button type="button" class="rtf-mode-btn ${state.rtfDisplayMode === "qty" ? "active" : ""}" data-rtf-mode="qty">수량</button>
         <button type="button" class="rtf-mode-btn ${state.rtfDisplayMode === "amount" ? "active" : ""}" data-rtf-mode="amount">금액</button>
       </div>
       <button type="button" id="rtfExpandToggle" class="rtf-extra-toggle ${state.rtfExpanded ? "active" : ""}">${state.rtfExpanded ? "축소" : "확대"}</button>
-      <span class="rtf-toolbar-hint">${state.rtfExpanded ? "분석용 상세 · 품목군 + 버튼으로 자재 상세" : "발표용 기본 · 판매 / RTF / 부족"}</span>
+      <span class="rtf-toolbar-hint">${state.rtfExpanded ? "분석용 상세 · 보기 기준 탭 선택" : "발표용 기본 · 사업부/플랜트/유형 전체 표시"}</span>
     </div>
-    ${renderMatrixSection("01. 사업부별", "business", items, "rtfBusinessMatrix")}
-    ${renderMatrixSection("02. 플랜트별", "plant",    items, "rtfPlantMatrix")}
-    ${renderMatrixSection("03. 유형별",   "type",     items, "rtfTypeMatrix")}
+    ${sectionHtml}
   </div>`;
 }
 
@@ -530,12 +703,19 @@ function bindRtf() {
     render("rtf");
   }));
 
+  document.querySelectorAll("[data-rtf-section]").forEach((btn) => btn.addEventListener("click", () => {
+    if (state.rtfSectionMode === btn.dataset.rtfSection) return;
+    state.rtfSectionMode = btn.dataset.rtfSection;
+    state.expandedItemGroups.clear();
+    render("rtf");
+  }));
+
   document.querySelectorAll(".rtf-item-toggle").forEach((btn) => btn.addEventListener("click", (e) => {
     e.stopPropagation();
     const nodeId = btn.dataset.nodeId, wasExp = state.expandedItemGroups.has(nodeId);
-    if (wasExp) { state.expandedItemGroups.delete(nodeId); btn.textContent = "+"; }
-    else        { state.expandedItemGroups.add(nodeId);    btn.textContent = "-"; }
-    document.querySelectorAll(`tr[data-parent-id="${CSS.escape(nodeId)}"]`).forEach((r) => { r.hidden = wasExp; });
+    if (wasExp) state.expandedItemGroups.delete(nodeId);
+    else        state.expandedItemGroups.add(nodeId);
+    render("rtf");
   }));
 
   document.querySelectorAll("[data-sort-col][data-sort-section]").forEach((th) => {

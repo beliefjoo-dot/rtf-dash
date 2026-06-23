@@ -188,6 +188,8 @@
   font-size: 12px;
   font-weight: 800;
   padding: 6px 7px;
+  text-align: center !important;   /* 어떤 col 클래스도 덮을 수 없게 */
+  vertical-align: middle !important;
 }
 
 .rtf-h-matrix-table .rtf-month-head {
@@ -209,23 +211,36 @@
 }
 
 .rtf-h-matrix-table .rtf-month-start {
-  border-left: 2px solid #6c757d;
+  border-left: 2px solid #adb5bd !important;
 }
 
-/* 정렬 가능한 헤더 커서 + 아이콘 */
+/* 정렬 가능한 헤더: 텍스트 중앙 유지, 아이콘은 절대 우측 배치 */
 .rtf-th-sortable {
   cursor: pointer;
+  position: relative;
   user-select: none;
 }
 
 .rtf-th-sortable:hover {
-  filter: brightness(1.15);
+  filter: brightness(1.18);
 }
 
 .rtf-sort-icon {
-  color: rgba(255,255,255,0.55);
-  font-size: 10px;
-  margin-left: 2px;
+  color: rgba(255,255,255,0.28);
+  font-size: 9px;
+  pointer-events: none;
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.rtf-sort-icon.is-active {
+  color: rgba(255,255,255,0.95);
+}
+
+.rtf-th-sortable:hover .rtf-sort-icon {
+  color: rgba(255,255,255,0.7);
 }
 
 /* ── 좌측 고정 컬럼 ── */
@@ -302,11 +317,7 @@
   background: #f0f5ff !important;
 }
 
-/* ── 구분 컬럼 ── */
-.rtf-col-div {
-  text-align: left !important;
-}
-
+/* ── 구분 컬럼 레이블 ── */
 .rtf-div-label {
   color: #6c757d;
   font-size: 11px;

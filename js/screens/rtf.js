@@ -675,6 +675,11 @@ function renderRtf() {
         ${verifyHtml}
       </div>
       <div class="rtf-insight">${summaryLine}</div>
+      <div class="rtf-formula">
+        <span>RTF = 판매계획 대비 공급가능수량</span>
+        <span>부족수량 = MAX(판매계획 − RTF, 0)</span>
+        <span>부족금액 = 부족수량 × 표준원가</span>
+      </div>
     </section>
     <div class="rtf-toolbar">
       ${state.rtfExpanded ? `<div class="rtf-section-tabs" aria-label="RTF 보기 기준">

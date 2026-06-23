@@ -319,6 +319,12 @@
   background: #424854;
 }
 
+/* 중첩 테이블 특이성 보정 — .cst-table thead th(뒤에 선언) 에 덮이는 월별·서브헤더 복원 */
+.cst-detail-table .cst-detail-head th {
+  background: #424854;
+  color: #fff;
+}
+
 /* 단위 컬럼 — 정보↔수량 구분선만 유지, 색상은 일반 컬럼과 동일하게 */
 .cst-detail-head th.cst-dtl-unit,
 .cst-detail-data-row td.cst-dtl-unit {

@@ -1319,7 +1319,7 @@ function renderConstraintTableBody(items, months, detailMode) {
         }).join("");
         var detailSubHeads = months.map(function() {
           return "<th class=\"cst-dtl-sub\">생산계획</th>" +
-                 "<th class=\"cst-dtl-sub\" title=\"완제품 1개 생산 시 필요한 자재 수량\">1개당 소요량</th>" +
+                 "<th class=\"cst-dtl-sub\" title=\"완제품 1개 생산 시 필요한 자재 수량\">개당 소요량</th>" +
                  "<th class=\"cst-dtl-sub\">자재 필요수량</th>";
         }).join("");
 

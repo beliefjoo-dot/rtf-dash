@@ -302,7 +302,8 @@
 .cst-detail-data-row td {
   background: #fff;
   color: #1f2933;
-  font-size: 12px;
+  font-size: 13px;
+  vertical-align: middle;
 }
 
 .cst-detail-data-row:hover td { background: #fff4cc !important; }
@@ -324,6 +325,7 @@
 .cst-detail-table .cst-detail-head th {
   background: #15803d;
   color: #fff;
+  vertical-align: middle;
 }
 
 /* 단위 컬럼 — 정보↔수량 구분선만 유지, 색상은 일반 컬럼과 동일하게 */
@@ -373,7 +375,7 @@
   border-collapse: separate;
   border-spacing: 0;
   font-family: "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-  font-size: 12px;
+  font-size: 14px;
   table-layout: fixed;
   width: max-content;
 }

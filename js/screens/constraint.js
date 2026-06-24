@@ -594,6 +594,28 @@ var DECISION_CLS = {
 };
 function decisionCls(label) { return DECISION_CLS[label] || "cst-dec-neutral"; }
 
+// ── 단위별 표시 정밀도 ───────────────────────────────────────────────────────
+function _cstDecByUnit(unit) {
+  var u = (unit || "").trim().toUpperCase();
+  if (/^(KG|L|KL)$/.test(u))                                         return 4;
+  if (/^(G|ML|MG)$/.test(u))                                         return 3;
+  if (/^(TB|EA|SH|ROL|PCS|정|매|개|병|봉|캔|포|통|박|SET)$/.test(u)) return 0;
+  return 4;
+}
+// v > 0 전제. 반올림 결과가 0이면 "<최소단위" 반환 (plain text, 호출측에서 escapeHtml)
+function _cstFmtVal(v, dec, unit) {
+  var suf = unit ? " " + unit : "";
+  if (!v || !isFinite(v) || v <= 0) return "-";
+  if (dec === 0) {
+    var r0 = Math.round(v);
+    return r0 === 0 ? ("<1" + suf) : (formatNumber(r0) + suf);
+  }
+  var factor = Math.pow(10, dec);
+  var r = Math.round(v * factor) / factor;
+  if (r === 0) return "<0." + "0".repeat(dec - 1) + "1" + suf;
+  return r.toLocaleString("ko-KR", { maximumFractionDigits: dec, minimumFractionDigits: 0 }) + suf;
+}
+
 // ── 압축 셀 계산 ─────────────────────────────────────────────────────────────
 function compactCellValue(item, md) {
   if (item.needsProvenanceCheck) return { text:"조달구분 확인", cls:"cst-neutral-cell" };
@@ -602,10 +624,10 @@ function compactCellValue(item, md) {
   if (!item.hasSupplyPlan)       return { text:"입고계획 확인", cls:"cst-neutral-cell" };
   if (md.shortageQty === null)   return { text:"판단불가",      cls:"cst-neutral-cell" };
   if (md.shortageQty > 0) {
-    var qty  = formatNumber(Math.round(md.shortageQty));
-    var unit = (item.unit && item.unit !== "확인필요") ? " " + item.unit : "";
-    if (item.isShared) return { text:"공통제약 " + qty + unit, cls:"cst-compact-shared" };
-    return { text:"부족 " + qty + unit, cls:"cst-shortage-cell" };
+    var matUnit = (item.unit && item.unit !== "확인필요") ? item.unit : "";
+    var qty = _cstFmtVal(md.shortageQty, _cstDecByUnit(matUnit), matUnit);
+    if (item.isShared) return { text:"공통제약 " + qty, cls:"cst-compact-shared" };
+    return { text:"부족 " + qty, cls:"cst-shortage-cell" };
   }
   return { text:"-", cls:"cst-neutral-cell" };
 }
@@ -1220,21 +1242,39 @@ function renderConstraintTableBody(items, months, detailMode) {
 
       var metricCells;
       if (detailMode) {
+        var _mUnit = (item.unit && item.unit !== "확인필요") ? item.unit : "";
+        var _mDec  = _cstDecByUnit(_mUnit);
         metricCells = item.monthlyData.map(function(md, mi) {
           return CONSTR_METRICS.map(function(metric, ci) {
             var borderCls = ci === 0 && mi > 0 ? " cst-month-start" : "";
-            var value = "-", cls = "cst-metric-cell";
+            var value = "-", cls = "cst-metric-cell", tip = "";
             if (metric === "필요") {
-              value = md.requiredQty > 0 ? formatNumber(Math.round(md.requiredQty)) : "-";
+              if (md.requiredQty > 0) {
+                value = _cstFmtVal(md.requiredQty, _mDec, _mUnit);
+                tip   = "정확값: " + md.requiredQty + (_mUnit ? " " + _mUnit : "");
+              }
             } else if (metric === "가용") {
-              if (item.unitMismatch || md.availableQty === null) { value = "판단불가"; cls += " cst-neutral-cell"; }
-              else value = formatNumber(Math.round(md.availableQty));
+              if (item.unitMismatch || md.availableQty === null) {
+                value = "판단불가"; cls += " cst-neutral-cell";
+              } else if (md.availableQty === 0) {
+                value = "0" + (_mUnit ? " " + _mUnit : "");
+              } else {
+                value = _cstFmtVal(md.availableQty, _mDec, _mUnit);
+                tip   = "정확값: " + md.availableQty + (_mUnit ? " " + _mUnit : "");
+              }
             } else {
-              if (item.unitMismatch || md.shortageQty === null) { value = "판단불가"; cls += " cst-neutral-cell"; }
-              else if (md.shortageQty > 0)  { value = formatNumber(Math.round(md.shortageQty)); cls += " cst-shortage-cell"; }
-              else                          { value = "-"; cls += " cst-neutral-cell"; }
+              if (item.unitMismatch || md.shortageQty === null) {
+                value = "판단불가"; cls += " cst-neutral-cell";
+              } else if (md.shortageQty > 0) {
+                value = _cstFmtVal(md.shortageQty, _mDec, _mUnit);
+                cls  += " cst-shortage-cell";
+                tip   = "정확값: " + md.shortageQty + (_mUnit ? " " + _mUnit : "");
+              } else {
+                value = "-"; cls += " cst-neutral-cell";
+              }
             }
-            return "<td class=\"" + cls + borderCls + "\">" + escapeHtml(value) + "</td>";
+            var tipAttr = tip ? " title=\"" + escapeHtml(tip) + "\"" : "";
+            return "<td class=\"" + cls + borderCls + "\"" + tipAttr + ">" + escapeHtml(value) + "</td>";
           }).join("");
         }).join("");
       } else {
@@ -1284,49 +1324,51 @@ function renderConstraintTableBody(items, months, detailMode) {
         }).join("");
 
         var detailBodyRows = shownParents.map(function(p, pi) {
-          // 단위소요량: reqQty ÷ prodQty = 완제품 1단위당 자재 소요량
+          // 1개당 소요량: reqQty ÷ prodQty (첫 생산계획 있는 월 기준)
           var unitReqNum = null;
           p.monthly.some(function(m) {
             if (m.prodQty > 0) { unitReqNum = m.reqQty / m.prodQty; return true; }
             return false;
           });
-          var _matUnit = (item.unit && item.unit !== "확인필요") ? item.unit.trim().toUpperCase() : "";
-          var _isHighPrec = /^(KG|G|L|ML|KL|MG)$/.test(_matUnit);
-          var _maxDec = _isHighPrec ? 6 : 4;
+          var _matUnit = (item.unit && item.unit !== "확인필요") ? item.unit : "";
+          var _dec     = _cstDecByUnit(_matUnit);
 
-          // 수치 → 표시 문자열 (0보다 크지만 표시 최소단위보다 작으면 <0.001)
-          function fmtQty(v, decimals) {
-            if (v === null || v === undefined || !isFinite(v)) return "-";
-            if (v === 0) return "-";
-            var factor = Math.pow(10, decimals);
-            var rounded = Math.round(v * factor) / factor;
-            if (rounded === 0) return "&lt;0." + "0".repeat(decimals - 1) + "1";
-            // 불필요한 후행 0 제거
-            return rounded.toLocaleString("ko-KR", { maximumFractionDigits: decimals, minimumFractionDigits: 0 });
-          }
-          function fmtUnitReq(v) { return fmtQty(v, _maxDec); }
-          function fmtReqQty(v)  { return fmtQty(v, _isHighPrec ? 4 : 2); }
-
-          // 1개당 소요량: 자재 단위만 표시 (완제품 단위 제외)
-          var unitReqVal  = unitReqNum !== null ? fmtUnitReq(unitReqNum) : "-";
-          var unitReqDisp = unitReqNum !== null
-            ? unitReqVal + (_matUnit ? " " + item.unit : "")
-            : "-";
-          var _unitSuffix = _matUnit ? " " + item.unit : "";
+          // 1개당 소요량: 항상 소수 최대 6자리, 자재 단위만 표시
+          var unitReqDisp = unitReqNum !== null ? _cstFmtVal(unitReqNum, 6, _matUnit) : "-";
+          var unitReqExact = unitReqNum !== null
+            ? "정확값: " + unitReqNum + (_matUnit ? " " + _matUnit : "") + "\n완제품 1개 생산 시 필요한 자재 수량"
+            : "완제품 1개 생산 시 필요한 자재 수량";
 
           var monthlyCells = p.monthly.map(function(md) {
             var prodDisp = md.prodQty > 0 ? formatNumber(Math.round(md.prodQty)) : "-";
-            var reqDisp;
-            if (md.prodQty > 0 && md.reqQty === 0 && unitReqNum === 0) {
-              reqDisp = "BOM 소요량 확인 필요";
+            var coeffDisp, coeffTip, reqDisp, reqTip;
+
+            if (md.prodQty > 0) {
+              coeffDisp = escapeHtml(unitReqDisp);
+              coeffTip  = unitReqExact;
             } else {
-              reqDisp = md.reqQty > 0 ? fmtReqQty(md.reqQty) + _unitSuffix : "-";
+              coeffDisp = "-"; coeffTip = "";
             }
-            // 1개당 소요량: 생산계획 있을 때만 표시
-            var coeffDisp = md.prodQty > 0 ? escapeHtml(unitReqDisp) : "-";
+
+            if (md.prodQty > 0 && md.reqQty === 0 && unitReqNum === 0) {
+              reqDisp = "BOM 소요량 확인 필요"; reqTip = "";
+            } else if (md.reqQty > 0) {
+              reqDisp = escapeHtml(_cstFmtVal(md.reqQty, _dec, _matUnit));
+              reqTip  = "정확값: " + md.reqQty + (_matUnit ? " " + _matUnit : "") +
+                        (md.prodQty > 0 && unitReqNum !== null
+                          ? "\n계산식: " + formatNumber(Math.round(md.prodQty)) + " × " + unitReqNum
+                          : "");
+            } else {
+              reqDisp = "-"; reqTip = "";
+            }
+
             return "<td class=\"cst-dtl-num\">" + prodDisp + "</td>" +
-                   "<td class=\"cst-dtl-num cst-dtl-coeff\" title=\"완제품 1개 생산 시 필요한 자재 수량\">" + coeffDisp + "</td>" +
-                   "<td class=\"cst-dtl-num\">" + reqDisp + "</td>";
+                   "<td class=\"cst-dtl-num cst-dtl-coeff\"" +
+                   (coeffTip ? " title=\"" + escapeHtml(coeffTip) + "\"" : "") + ">" +
+                   coeffDisp + "</td>" +
+                   "<td class=\"cst-dtl-num\"" +
+                   (reqTip ? " title=\"" + escapeHtml(reqTip) + "\"" : "") + ">" +
+                   reqDisp + "</td>";
           }).join("");
 
           // 품목군: 연속 동일값이면 첫 행에서만 rowspan 셀 출력

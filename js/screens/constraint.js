@@ -1866,6 +1866,7 @@ function bindConstraint() {
         state.constraintImpactSort = 0;
         state.constraintFilter = (state.bomResult && state.bomResult.items && state.bomResult.items.some(function(i) { return i.hasAnyShortage; })) ? "shortage" : "all";
         render("constraint");
+        if (state.currentMenuId === "rtf") render("rtf");
       }
     };
     setTimeout(advance, 100);

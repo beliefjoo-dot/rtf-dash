@@ -758,7 +758,9 @@ function renderRtf() {
         <span>RTF = 판매계획 대비 공급가능수량</span>
         <span>부족수량 = MAX(판매계획 − RTF, 0)</span>
         <span>부족금액 = 부족수량 × 표준원가</span>
-        ${state.bomStatus === "done" ? `<span class="rtf-bom-badge">BOM 전개 반영 중</span>` : `<span class="rtf-bom-badge rtf-bom-badge-off">BOM 미반영 (공급원인 화면에서 BOM 전개 필요)</span>`}
+        ${state.bomStatus === "done"
+          ? `<span class="rtf-bom-badge">BOM 전개 반영 중 (완제품만)${(state.bomResult && state.bomResult.stats && state.bomResult.stats.indeterminate > 0) ? ` · 판단불가 ${state.bomResult.stats.indeterminate}건` : ""}</span>`
+          : `<span class="rtf-bom-badge rtf-bom-badge-off">BOM 미반영 — 공급원인 화면에서 BOM 전개 필요 (완제품만 적용)</span>`}
       </div>
     </section>
     <div class="rtf-toolbar">

@@ -1234,6 +1234,23 @@ function renderCstDetailExpanded(item, months, totalCols) {
     "</tr></thead><tbody>" + summaryRows + "</tbody></table></div></div>";
 
   // ══ SECTION 2: 영향품목 및 조율 후보 ══
+  var shortageConfirmed = canCompute && item.hasAnyShortage;
+
+  // 부족 확정 시: 완제품 RTF 부족 (판매계획 - 공급계획) lookup
+  var salesByParentMonth = new Map();
+  if (shortageConfirmed) {
+    state.mappedData.plan_monthly.forEach(function(r) {
+      var code = cleanOptional(r.itemCode), plant = cleanOptional(r.plant), month = cleanOptional(r.month);
+      if (!code || !plant || !month) return;
+      var key = code + "|" + plant + "|" + month;
+      salesByParentMonth.set(key, (salesByParentMonth.get(key) || 0) + (cleanNumber(r.salesQty) || 0));
+    });
+  }
+
+  // 월별 자재 부족수량 index
+  var monthlyShortage = new Map();
+  item.monthlyData.forEach(function(md, i) { monthlyShortage.set(months[i], md.shortageQty); });
+
   var sortedParents = item.parentItems.slice().sort(function(a, b) {
     var aR = a.monthly.reduce(function(s, m) { return s + m.reqQty; }, 0);
     var bR = b.monthly.reduce(function(s, m) { return s + m.reqQty; }, 0);
@@ -1243,11 +1260,14 @@ function renderCstDetailExpanded(item, months, totalCols) {
   var hasMore = sortedParents.length > EXPAND_LIMIT;
   var shownParents = sortedParents.slice(0, EXPAND_LIMIT);
 
+  var impColPer = shortageConfirmed ? 3 : 2;
   var impMonthHeads = months.map(function(m) {
-    return "<th class=\"cst-imp-month\" colspan=\"2\">" + escapeHtml(monthLabel(m)) + "</th>";
+    return "<th class=\"cst-imp-month\" colspan=\"" + impColPer + "\">" + escapeHtml(monthLabel(m)) + "</th>";
   }).join("");
   var impSubHeads = months.map(function() {
-    return "<th class=\"cst-imp-sub\">생산계획</th><th class=\"cst-imp-sub\">총 자재 필요수량</th>";
+    return shortageConfirmed
+      ? "<th class=\"cst-imp-sub\">생산계획</th><th class=\"cst-imp-sub cst-imp-sub-short\">부족</th><th class=\"cst-imp-sub\">자재 부족수량</th>"
+      : "<th class=\"cst-imp-sub\">생산계획</th><th class=\"cst-imp-sub\">총 자재 필요수량</th>";
   }).join("");
 
   var impRows = shownParents.map(function(p) {
@@ -1261,9 +1281,23 @@ function renderCstDetailExpanded(item, months, totalCols) {
     var adjCls = adjLabel === "조율 검토 대상"      ? " cst-adj-candidate"
                : adjLabel === "데이터 연결 후 판단" ? " cst-adj-unknown" : "";
 
-    var monthlyCells = p.monthly.map(function(md) {
-      return "<td class=\"cst-imp-num\">" +
-               (md.prodQty > 0 ? formatNumber(Math.round(md.prodQty)) : "-") + "</td>" +
+    var monthlyCells = p.monthly.map(function(md, mi) {
+      var month    = months[mi];
+      var prodDisp = md.prodQty > 0 ? formatNumber(Math.round(md.prodQty)) : "-";
+
+      if (shortageConfirmed) {
+        var salesKey    = p.code + "|" + p.plant + "|" + month;
+        var salesQty    = salesByParentMonth.get(salesKey) || 0;
+        var rtfShortage = Math.max(0, salesQty - md.prodQty);
+        var rtfDisp     = rtfShortage > 0 ? formatNumber(Math.round(rtfShortage)) : "-";
+        var matShort    = monthlyShortage.get(month);
+        var matDisp     = (matShort !== null && matShort > 0)
+          ? escapeHtml(_cstFmtVal(matShort, dec, matUnit)) : "-";
+        return "<td class=\"cst-imp-num\">" + prodDisp + "</td>" +
+               "<td class=\"cst-imp-num cst-imp-short\">" + rtfDisp + "</td>" +
+               "<td class=\"cst-imp-num cst-imp-matshort\">" + matDisp + "</td>";
+      }
+      return "<td class=\"cst-imp-num\">" + prodDisp + "</td>" +
              "<td class=\"cst-imp-num\">" +
                escapeHtml(md.reqQty > 0 ? _cstFmtVal(md.reqQty, dec, matUnit) : "-") + "</td>";
     }).join("");
@@ -1289,7 +1323,7 @@ function renderCstDetailExpanded(item, months, totalCols) {
     "<div class=\"cst-det-scroll\"><table class=\"cst-imp-table\"><thead>" +
     "<tr class=\"cst-imp-head\"><th rowspan=\"2\">완제품코드</th><th rowspan=\"2\">완제품명</th>" +
     "<th rowspan=\"2\">품목군</th>" +
-    "<th rowspan=\"2\" title=\"완제품 1개 생산 시 필요한 자재 수량\">개당 소요량</th>" +
+    "<th rowspan=\"2\" title=\"완제품 1개 생산 시 필요한 자재 수량\">1개당 소요량</th>" +
     impMonthHeads + "<th rowspan=\"2\">조율 후보</th></tr>" +
     "<tr class=\"cst-imp-head\">" + impSubHeads + "</tr>" +
     "</thead><tbody>" + impRows + "</tbody></table>" + moreMsg + "</div></div>";

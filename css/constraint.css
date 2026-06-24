@@ -866,3 +866,6 @@
 .cst-imp-adj    { text-align: center; white-space: nowrap; }
 .cst-adj-candidate { color: #b45309; font-weight: 700; }
 .cst-adj-unknown   { color: #9ca3af; font-size: 12px; }
+.cst-imp-sub-short { background: #854d0e !important; }
+.cst-imp-short     { color: #b45309; font-weight: 700; }
+.cst-imp-matshort  { color: #b02a37; font-weight: 700; }

@@ -1140,6 +1140,87 @@ function renderConstraintTableSection(result, bomStatus, months) {
          tableContent + "</section>";
 }
 
+// ── 빠른 시뮬레이션 핸들러 ──────────────────────────────────────────────────
+function _cstSimRun(compKey) {
+  var sec = document.querySelector(".cst-sim-section[data-compkey=\"" + compKey + "\"]");
+  if (!sec) return;
+  var sd;
+  try { sd = JSON.parse(sec.getAttribute("data-simdata")); } catch(e) { return; }
+
+  var incomingByMonth = {}, prodAdjByMonth = {}, altBomCoeff = null;
+  sec.querySelectorAll(".cst-sim-input").forEach(function(inp) {
+    var type  = inp.getAttribute("data-type");
+    var month = inp.getAttribute("data-month");
+    var raw   = inp.value.trim();
+    var val   = raw !== "" ? (parseFloat(raw) || 0) : 0;
+    if (type === "incoming") incomingByMonth[month] = val;
+    else if (type === "prod") prodAdjByMonth[month] = val;
+    else if (type === "altbom" && raw !== "") altBomCoeff = parseFloat(raw) || null;
+  });
+
+  var matUnit = sd.matUnit || "";
+  var dec     = typeof sd.dec === "number" ? sd.dec : 0;
+  function fmtN(v) {
+    if (!v || !isFinite(v) || v <= 0) return "-";
+    return v.toLocaleString("ko-KR", { maximumFractionDigits: dec, minimumFractionDigits: 0 }) + (matUnit ? " " + matUnit : "");
+  }
+
+  var rows = sd.months.map(function(month, i) {
+    var md = sd.monthlyData[i] || {};
+    if (md.availableQty === null || md.availableQty === undefined) return null;
+    var incoming = incomingByMonth[month] || 0;
+    var prodAdj  = prodAdjByMonth[month]  || 0;
+    var useCoeff = (altBomCoeff !== null && sd.hasAltBom) ? altBomCoeff : sd.avgUnitReq;
+    var newAvail = (md.availableQty || 0) + incoming;
+    var newReq   = md.requiredQty || 0;
+    if ((prodAdj !== 0 || (altBomCoeff !== null && sd.hasAltBom)) && sd.avgUnitReq) {
+      var origProd = sd.avgUnitReq > 0 ? newReq / sd.avgUnitReq : 0;
+      newReq = Math.max(0, (origProd + prodAdj) * (useCoeff || sd.avgUnitReq));
+    }
+    var before = md.shortageQty !== null && md.shortageQty !== undefined
+      ? md.shortageQty : Math.max(0, (md.requiredQty || 0) - (md.availableQty || 0));
+    var after  = Math.max(0, newReq - newAvail);
+    return { month: month, before: before, after: after };
+  }).filter(Boolean);
+
+  var beforeRow = "<tr><td class=\"cst-sim-rlabel\">시뮬레이션 전 자재 부족수량</td>" +
+    rows.map(function(r) {
+      return "<td class=\"cst-sim-rnum" + (r.before > 0 ? " cst-sim-rnum-s" : "") + "\">" + fmtN(r.before) + "</td>";
+    }).join("") + "</tr>";
+  var afterRow = "<tr><td class=\"cst-sim-rlabel\">시뮬레이션 후 자재 부족수량</td>" +
+    rows.map(function(r) {
+      return "<td class=\"cst-sim-rnum" + (r.after > 0 ? " cst-sim-rnum-s" : (r.before > 0 ? " cst-sim-rnum-ok" : "")) + "\">" + fmtN(r.after) + "</td>";
+    }).join("") + "</tr>";
+  var resolveRow = "<tr><td class=\"cst-sim-rlabel\">부족 해소 여부</td>" +
+    rows.map(function(r) {
+      if (r.before === 0) return "<td class=\"cst-sim-rstat\">-</td>";
+      if (r.after === 0)  return "<td class=\"cst-sim-rstat cst-sim-resolved\">✓ 해소</td>";
+      if (r.after < r.before) return "<td class=\"cst-sim-rstat cst-sim-improved\">▽ 개선</td>";
+      return "<td class=\"cst-sim-rstat cst-sim-unresolved\">✗ 미해소</td>";
+    }).join("") + "</tr>";
+  var noteRow = "<tr><td class=\"cst-sim-rlabel\">검토 결과</td>" +
+    rows.map(function(r) {
+      var note = r.before === 0 ? "부족 없음"
+               : r.after === 0  ? "가정 시나리오로 해소 가능"
+               : r.after < r.before ? "개선되나 부족 잔존"
+               : "추가 조정 검토 필요";
+      return "<td class=\"cst-sim-rnote\">" + note + "</td>";
+    }).join("") + "</tr>";
+
+  var tbody = sec.querySelector(".cst-sim-result tbody");
+  if (tbody) tbody.innerHTML = beforeRow + afterRow + resolveRow + noteRow;
+  var res = sec.querySelector(".cst-sim-result");
+  if (res) res.style.display = "";
+}
+
+function _cstSimReset(compKey) {
+  var sec = document.querySelector(".cst-sim-section[data-compkey=\"" + compKey + "\"]");
+  if (!sec) return;
+  sec.querySelectorAll(".cst-sim-input").forEach(function(inp) { inp.value = ""; });
+  var res = sec.querySelector(".cst-sim-result");
+  if (res) res.style.display = "none";
+}
+
 // ── 펼침 상세 v2: 수급요약 + 영향품목/조율 후보 ──────────────────────────────
 function renderCstDetailExpanded(item, months, totalCols) {
   var matUnit    = (item.unit && item.unit !== "확인필요") ? item.unit : "";
@@ -1232,6 +1313,80 @@ function renderCstDetailExpanded(item, months, totalCols) {
     "<div class=\"cst-det-scroll\"><table class=\"cst-ss-table\"><thead><tr>" +
     "<th>월</th><th>총 자재 필요수량</th><th>월초재고</th><th>입고계획</th><th>가용수량</th><th>자재 부족수량</th><th>판단상태</th>" +
     "</tr></thead><tbody>" + summaryRows + "</tbody></table></div></div>";
+
+  // ══ SECTION SIM: 빠른 시뮬레이션 ══
+  var simHtml = "";
+  if (canCompute) {
+    var tp = 0, tr2 = 0;
+    item.parentItems.forEach(function(p) {
+      p.monthly.forEach(function(m) { tp += m.prodQty; tr2 += m.reqQty; });
+    });
+    var avgUnitReq = tp > 0 ? tr2 / tp : null;
+
+    var simKey = item.componentCode + "|" + item.plant;
+    var simDataObj = {
+      months:      months,
+      monthlyData: item.monthlyData.map(function(md) {
+        return { requiredQty: md.requiredQty || 0, availableQty: md.availableQty, shortageQty: md.shortageQty };
+      }),
+      hasAltBom:   !!item.hasAltBom,
+      avgUnitReq:  avgUnitReq,
+      matUnit:     matUnit,
+      dec:         dec,
+    };
+    var simKey_esc  = escapeHtml(simKey);
+    var simData_esc = escapeHtml(JSON.stringify(simDataObj));
+
+    var simMHds = months.map(function(m) {
+      return "<th class=\"cst-sim-mh\">" + escapeHtml(monthLabel(m)) + "</th>";
+    }).join("");
+
+    var simInRow = "<tr><td class=\"cst-sim-ilabel\">입고 추가/당김 (" + escapeHtml(matUnit || "자재단위") + ")</td>" +
+      months.map(function(m) {
+        return "<td><input type=\"number\" step=\"any\" class=\"cst-sim-input\" data-type=\"incoming\" data-month=\"" +
+          escapeHtml(m) + "\" placeholder=\"0\"></td>";
+      }).join("") + "</tr>";
+
+    var simPRow = "<tr><td class=\"cst-sim-ilabel\">생산계획 조정 (EA — 음수 감소/양수 증가)</td>" +
+      months.map(function(m) {
+        return "<td><input type=\"number\" step=\"1\" class=\"cst-sim-input\" data-type=\"prod\" data-month=\"" +
+          escapeHtml(m) + "\" placeholder=\"0\"></td>";
+      }).join("") + "</tr>";
+
+    var simAltRow = item.hasAltBom
+      ? "<tr><td class=\"cst-sim-ilabel\">대체BOM 1개당 소요량 (" + escapeHtml(matUnit || "자재단위") +
+        ") <span class=\"cst-sim-tag\">대체BOM 있음</span></td>" +
+        "<td colspan=\"" + months.length + "\"><input type=\"number\" step=\"any\" class=\"cst-sim-input\" data-type=\"altbom\"" +
+        " placeholder=\"미입력 시 기본BOM 계수 유지\" style=\"width:220px\"></td></tr>"
+      : "";
+
+    var coefNote = avgUnitReq !== null
+      ? "<div class=\"cst-sim-coefnote\">기본BOM 기준 1개당 소요량: " + escapeHtml(_cstFmtVal(avgUnitReq, 6, matUnit)) + "</div>"
+      : "";
+
+    simHtml =
+      "<div class=\"cst-det-section cst-sim-section\" data-compkey=\"" + simKey_esc + "\" data-simdata=\"" + simData_esc + "\">" +
+      "<div class=\"cst-det-section-title\">빠른 시뮬레이션 <span class=\"cst-sim-tag cst-sim-tag-warn\">임시 가정 결과 · 원본 미반영</span></div>" +
+      "<div class=\"cst-sim-body\">" +
+      coefNote +
+      "<div class=\"cst-det-scroll\"><table class=\"cst-sim-input-table\"><thead><tr>" +
+      "<th class=\"cst-sim-ilabel-h\">입력 항목</th>" + simMHds + "</tr></thead>" +
+      "<tbody>" + simInRow + simPRow + simAltRow + "</tbody></table></div>" +
+      "<div class=\"cst-sim-btns\">" +
+      "<button type=\"button\" class=\"btn-sim-run\"" +
+      " onclick=\"_cstSimRun(this.closest('.cst-sim-section').getAttribute('data-compkey'))\">▶ 시뮬레이션 실행</button> " +
+      "<button type=\"button\" class=\"btn-sim-reset\"" +
+      " onclick=\"_cstSimReset(this.closest('.cst-sim-section').getAttribute('data-compkey'))\">초기화</button> " +
+      "<button type=\"button\" class=\"btn-sim-send\" disabled title=\"확정 조정은 조정입력 화면에서 반영\">조정안으로 보내기</button>" +
+      "</div>" +
+      "<div class=\"cst-sim-result\" style=\"display:none\">" +
+      "<div class=\"cst-sim-result-title\">▼ 시뮬레이션 결과 (가정 기준)</div>" +
+      "<div class=\"cst-det-scroll\"><table class=\"cst-sim-result-table\"><thead><tr>" +
+      "<th class=\"cst-sim-ilabel-h\">결과 항목</th>" + simMHds + "</tr></thead>" +
+      "<tbody></tbody></table></div>" +
+      "</div>" +
+      "</div></div>";
+  }
 
   // ══ SECTION 2: 영향품목 및 조율 후보 ══
   var shortageConfirmed = canCompute && item.hasAnyShortage;
@@ -1330,7 +1485,7 @@ function renderCstDetailExpanded(item, months, totalCols) {
 
   return "<tr class=\"cst-detail-row\"><td colspan=\"" + totalCols + "\" class=\"cst-detail-cell\">" +
     "<div class=\"cst-detail-inner cst-detail-v2\">" +
-    summaryHtml + impactHtml +
+    summaryHtml + simHtml + impactHtml +
     "</div></td></tr>";
 }
 

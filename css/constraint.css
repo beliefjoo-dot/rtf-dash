@@ -869,3 +869,38 @@
 .cst-imp-sub-short { background: #854d0e !important; }
 .cst-imp-short     { color: #b45309; font-weight: 700; }
 .cst-imp-matshort  { color: #b02a37; font-weight: 700; }
+
+/* ── 빠른 시뮬레이션 ──────────────────────────────────────────────────────── */
+.cst-sim-section .cst-det-section-title { background: #1e3a5f; }
+.cst-sim-tag          { background: #374151; border-radius: 3px; color: #d1d5db; font-size: 10px; font-weight: 600; margin-left: 6px; padding: 2px 5px; }
+.cst-sim-tag-warn     { background: #92400e !important; color: #fde68a !important; }
+.cst-sim-body         { padding: 8px 12px 12px; }
+.cst-sim-coefnote     { color: #6b7280; font-size: 12px; margin-bottom: 6px; }
+.cst-sim-input-table  { border-collapse: collapse; font-size: 13px; min-width: 100%; }
+.cst-sim-input-table th,
+.cst-sim-input-table td { border: 1px solid #e5e7eb; padding: 4px 6px; vertical-align: middle; }
+.cst-sim-ilabel-h     { background: #f9fafb; font-size: 12px; font-weight: 700; text-align: left; white-space: nowrap; }
+.cst-sim-mh           { background: #374151; color: #fff; font-size: 12px; text-align: center; white-space: nowrap; }
+.cst-sim-ilabel       { background: #f9fafb; color: #374151; font-size: 12px; white-space: nowrap; }
+.cst-sim-input        { border: 1px solid #d1d5db; border-radius: 3px; font-size: 12px; padding: 3px 4px; text-align: right; width: 72px; }
+.cst-sim-input:focus  { border-color: #3b82f6; outline: none; }
+.cst-sim-btns         { margin-top: 8px; }
+.btn-sim-run          { background: #1d4ed8; border: none; border-radius: 4px; color: #fff; cursor: pointer; font-size: 13px; font-weight: 700; padding: 5px 14px; }
+.btn-sim-run:hover    { background: #1e40af; }
+.btn-sim-reset        { background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 4px; color: #374151; cursor: pointer; font-size: 12px; padding: 5px 10px; }
+.btn-sim-reset:hover  { background: #e5e7eb; }
+.btn-sim-send         { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 4px; color: #9ca3af; cursor: not-allowed; font-size: 12px; padding: 5px 10px; }
+.cst-sim-result       { margin-top: 10px; }
+.cst-sim-result-title { color: #374151; font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+.cst-sim-result-table { border-collapse: collapse; font-size: 13px; min-width: 100%; }
+.cst-sim-result-table th,
+.cst-sim-result-table td { border: 1px solid #e5e7eb; padding: 5px 8px; vertical-align: middle; }
+.cst-sim-rlabel       { background: #f9fafb; font-size: 12px; white-space: nowrap; }
+.cst-sim-rnum         { text-align: right; white-space: nowrap; }
+.cst-sim-rnum-s       { color: #b02a37; font-weight: 700; }
+.cst-sim-rnum-ok      { color: #15803d; font-weight: 700; }
+.cst-sim-rstat        { font-weight: 700; text-align: center; white-space: nowrap; }
+.cst-sim-resolved     { color: #15803d; }
+.cst-sim-improved     { color: #b45309; }
+.cst-sim-unresolved   { color: #b02a37; }
+.cst-sim-rnote        { color: #374151; font-size: 12px; }

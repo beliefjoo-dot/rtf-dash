@@ -1282,26 +1282,48 @@ function renderConstraintTableBody(items, months, detailMode) {
         }).join("");
 
         var detailBodyRows = shownParents.map(function(p, pi) {
-          // 단위소요량: reqQty ÷ prodQty = 완제품 1단위당 자재 소요량 (BOM 계수)
+          // 단위소요량: reqQty ÷ prodQty = 완제품 1단위당 자재 소요량
           var unitReqNum = null;
           p.monthly.some(function(m) {
             if (m.prodQty > 0) { unitReqNum = m.reqQty / m.prodQty; return true; }
             return false;
           });
-          // 1 이상이면 정수 반올림, 1 미만이면 소수 첫째자리 반올림
-          var unitReqVal = "-";
-          if (unitReqNum !== null) {
-            unitReqVal = unitReqNum >= 1
-              ? String(Math.round(unitReqNum))
-              : String(Math.round(unitReqNum * 10) / 10);
+          var _matUnit = (item.unit && item.unit !== "확인필요") ? item.unit.trim().toUpperCase() : "";
+          var _isHighPrec = /^(KG|G|L|ML|KL|MG)$/.test(_matUnit);
+          var _maxDec = _isHighPrec ? 6 : 4;
+
+          // 수치 → 표시 문자열 (0보다 크지만 표시 최소단위보다 작으면 <0.001)
+          function fmtQty(v, decimals) {
+            if (v === null || v === undefined || !isFinite(v)) return "-";
+            if (v === 0) return "-";
+            var factor = Math.pow(10, decimals);
+            var rounded = Math.round(v * factor) / factor;
+            if (rounded === 0) return "&lt;0." + "0".repeat(decimals - 1) + "1";
+            // 불필요한 후행 0 제거
+            return rounded.toLocaleString("ko-KR", { maximumFractionDigits: decimals, minimumFractionDigits: 0 });
           }
+          function fmtUnitReq(v) { return fmtQty(v, _maxDec); }
+          function fmtReqQty(v)  { return fmtQty(v, _isHighPrec ? 4 : 2); }
+
+          var unitReqVal  = unitReqNum !== null ? fmtUnitReq(unitReqNum) : "-";
           var unitReqDisp = unitReqNum !== null
-            ? unitReqVal + (item.unit && item.unit !== "확인필요" ? " " + item.unit : "") + "/" + (p.unit || "EA")
+            ? unitReqVal + (_matUnit ? " " + item.unit : "") + "/" + (p.unit || "EA")
             : "-";
+
           var monthlyCells = p.monthly.map(function(md) {
-            return "<td class=\"cst-dtl-num\">" + (md.prodQty > 0 ? formatNumber(Math.round(md.prodQty)) : "-") + "</td>" +
-                   "<td class=\"cst-dtl-num cst-dtl-coeff\">" + escapeHtml(unitReqDisp) + "</td>" +
-                   "<td class=\"cst-dtl-num\">" + (md.reqQty  > 0 ? formatNumber(Math.round(md.reqQty))  : "-") + "</td>";
+            var prodDisp = md.prodQty > 0 ? formatNumber(Math.round(md.prodQty)) : "-";
+            var reqDisp;
+            if (md.prodQty > 0 && md.reqQty === 0 && unitReqNum === 0) {
+              // 생산계획 있는데 소요량도 0 → BOM 계수 문제
+              reqDisp = "BOM 소요량 확인 필요";
+            } else {
+              reqDisp = md.reqQty > 0 ? fmtReqQty(md.reqQty) : "-";
+            }
+            // 단위소요량 셀: 생산계획 있을 때만 표시
+            var coeffDisp = md.prodQty > 0 ? escapeHtml(unitReqDisp) : "-";
+            return "<td class=\"cst-dtl-num\">" + prodDisp + "</td>" +
+                   "<td class=\"cst-dtl-num cst-dtl-coeff\">" + coeffDisp + "</td>" +
+                   "<td class=\"cst-dtl-num\">" + reqDisp + "</td>";
           }).join("");
 
           // 품목군: 연속 동일값이면 첫 행에서만 rowspan 셀 출력

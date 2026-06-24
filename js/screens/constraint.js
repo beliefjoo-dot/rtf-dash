@@ -82,7 +82,7 @@ function computeBomExpansion() {
   });
 
   // 반제품 하위 BOM 맵 (비9코드 루트 — 추가전개 기준 데이터)
-  var semiBomRowsMap = new Map();  // semiCode → [baseBomRow, ...]
+  var semiBomRowsMap = new Map();  // semiCode|plant → [baseBomRow, ...]
   var codesWithSubBom = new Set(); // 정합성 검증용 유지
   bomRows.forEach(function(r) {
     if (!r.rootItemCode || r.rootItemCode.startsWith("9")) return;
@@ -90,8 +90,9 @@ function computeBomExpansion() {
     if (alt !== "" && alt !== "1") return;
     codesWithSubBom.add(r.rootItemCode);
     if (!r.componentCode || !String(r.componentCode).trim()) return;
-    if (!semiBomRowsMap.has(r.rootItemCode)) semiBomRowsMap.set(r.rootItemCode, []);
-    semiBomRowsMap.get(r.rootItemCode).push(r);
+    var semiKey = r.rootItemCode + "|" + r.plant;
+    if (!semiBomRowsMap.has(semiKey)) semiBomRowsMap.set(semiKey, []);
+    semiBomRowsMap.get(semiKey).push(r);
   });
 
   // 기본 BOM 필터 (alternativeBom 공란 or "1")
@@ -253,7 +254,7 @@ function computeBomExpansion() {
 
     // ── 반제품/재공품 혼합형 다단계 BOM 처리
     if (_isSemi(bom.componentCode, bom.itemCategory)) {
-      var semiSubs  = semiBomRowsMap.get(bom.componentCode);
+      var semiSubs  = semiBomRowsMap.get(bom.componentCode + "|" + bom.plant);
       var rootComps = rootCompSet.get(rootKey);
 
       // 다단계 감지: 이 반제품의 하위 원료가 이미 같은 Root 안에 포함되어 있는가
@@ -494,13 +495,17 @@ function filterConstraintItems(items) {
   // ── 드릴다운 필터 우선 적용 ──────────────────────────────────────────────
   if (d && !d.isAggregate && d.itemCode) {
     return items.filter(function(item) {
-      return item.parentItems.some(function(p) { return p.code === d.itemCode; });
+      return item.parentItems.some(function(p) {
+        return p.code === d.itemCode && (!d.plant || p.plant === d.plant);
+      });
     });
   }
   if (d && d.isAggregate && d.itemCodes && d.itemCodes.length) {
     var codeSet = new Set(d.itemCodes);
     return items.filter(function(item) {
-      return item.parentItems.some(function(p) { return codeSet.has(p.code); });
+      return item.parentItems.some(function(p) {
+        return codeSet.has(p.code) && (!d.plant || p.plant === d.plant);
+      });
     });
   }
 

@@ -60,6 +60,7 @@ const state = {
   constraintImpactSort: 0,
   validationPanelOpen: false,
   validationTab: 0,
+  calcCriteriaOpen: false,
 };
 
 // DOM 참조

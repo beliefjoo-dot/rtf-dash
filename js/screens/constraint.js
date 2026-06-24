@@ -826,6 +826,42 @@ function renderVldSec7(rows, months) {
     "</thead><tbody>" + bodyHtml + "</tbody></table></div>";
 }
 
+// ── 계산기준 패널 ─────────────────────────────────────────────────────────────
+function renderCalcCriteria() {
+  if (!state.calcCriteriaOpen) return "";
+  var formulas = [
+    ["BOM 필요수량",  "생산계획 × 구성요소수량 ÷ BOM 기준수량"],
+    ["BOM 환산계수",  "구성요소수량 ÷ BOM 기준수량"],
+    ["가용수량",      "월초재고 + 공급계획"],
+    ["부족수량",      "MAX(필요수량 − 가용수량, 0)"],
+    ["부족금액",      "부족수량 × 표준원가"],
+  ];
+  var criteria = [
+    "공용자재는 완제품별 임의 배분 없이 <b>공통제약</b>으로 표시",
+    "반제품·재공품은 부족 대상이 아닌 중간단계로 처리",
+    "부족 대상은 최하위 원료·자재 중심으로 판단",
+    "반제품과 하위 원료·자재의 중복 부족 계산 방지",
+    "대체BOM 적용 제외 — 기본BOM(1번)만 사용",
+    "단위 불일치 시 임의 환산 없이 <b>단위 정합 확인</b>으로 표시",
+    "현재고·공급계획 미연결 시 부족 미확정 — <b>연결필요</b> · <b>판단불가</b>로 표시",
+  ];
+  var formulaRows = formulas.map(function(f) {
+    return "<li><span class=\"cst-crit-formula\">" + escapeHtml(f[0]) + "</span> = " + escapeHtml(f[1]) + "</li>";
+  }).join("");
+  var criteriaRows = criteria.map(function(c) {
+    return "<li>" + c + "</li>";
+  }).join("");
+  return "<div class=\"cst-criteria-panel\">" +
+    "<div class=\"cst-criteria-grid\">" +
+    "<div class=\"cst-criteria-group\">" +
+    "<div class=\"cst-criteria-group-title\">산식</div>" +
+    "<ul class=\"cst-criteria-list\">" + formulaRows + "</ul></div>" +
+    "<div class=\"cst-criteria-group\">" +
+    "<div class=\"cst-criteria-group-title\">판정 기준</div>" +
+    "<ul class=\"cst-criteria-list\">" + criteriaRows + "</ul></div>" +
+    "</div></div>";
+}
+
 // ── 결과 표 섹션 ─────────────────────────────────────────────────────────────
 function renderConstraintTableSection(result, bomStatus, months) {
   var isRunning = bomStatus === BOM_STATUS.RUNNING;
@@ -836,7 +872,11 @@ function renderConstraintTableSection(result, bomStatus, months) {
   var statusLabel = { idle:"미실행", running:"진행중", done:"완료", failed:"실패" }[bomStatus] || "-";
   var statusCls   = isDone ? " cst-status-done" : bomStatus === BOM_STATUS.FAILED ? " cst-status-fail" : "";
 
-  var headerRight = "<div class=\"cst-sec-actions\">" +
+  var critOpen     = state.calcCriteriaOpen;
+  var critBtnLabel = critOpen ? "계산기준 ▲" : "계산기준 ▼";
+  var headerRight  = "<div class=\"cst-sec-actions\">" +
+    "<button type=\"button\" id=\"calcCriteriaBtn\" class=\"cst-criteria-btn" + (critOpen ? " active" : "") + "\">" +
+    escapeHtml(critBtnLabel) + "</button>" +
     "<span class=\"cst-status-badge" + statusCls + "\">전개상태: " + escapeHtml(statusLabel) + "</span>" +
     (lastTime ? "<span class=\"cst-status-time\">마지막 전개: " + escapeHtml(lastTime) + "</span>" : "") +
     (isDone ? "<button type=\"button\" id=\"validationBtn\" class=\"cst-validate-btn\">정합성 검증</button>" : "") +
@@ -862,6 +902,7 @@ function renderConstraintTableSection(result, bomStatus, months) {
 
   return "<section class=\"cst-card cst-table-block\">" +
          "<div class=\"cst-sec-title\">BOM 전개 공급원인 분석" + headerRight + "</div>" +
+         renderCalcCriteria() +
          tableContent + "</section>";
 }
 
@@ -1157,6 +1198,12 @@ function bindConstraint() {
   });
 
   // 정합성 검증 버튼
+  var critBtn = document.querySelector("#calcCriteriaBtn");
+  if (critBtn) critBtn.addEventListener("click", function() {
+    state.calcCriteriaOpen = !state.calcCriteriaOpen;
+    render("constraint");
+  });
+
   var valBtn = document.querySelector("#validationBtn");
   if (valBtn) valBtn.addEventListener("click", function() {
     state.validationPanelOpen = true;

@@ -5,15 +5,13 @@ var _bomAnimId = 0;
 // ── 컬럼 / 메트릭 정의 ───────────────────────────────────────────────────────
 // 기본 표시 컬럼 (영향 품목군·대표 영향품목 제거 → 영향품목수 tooltip/펼침에서 확인)
 var CONSTR_LEFT_COLS = [
-  { key:"plant",        label:"플랜트",           width:60,  align:"center" },
-  { key:"itemCategory", label:"제약대상 유형",    width:80,  align:"center" },
-  { key:"shareType",    label:"공용/전용",         width:60,  align:"center" },
-  { key:"code",         label:"자재코드",          width:90,  align:"center" },
-  { key:"name",         label:"자재명",            width:140, align:"left",  isName:true },
-  { key:"unit",         label:"단위",              width:52,  align:"center" },
-  { key:"impactCount",  label:"영향품목수",        width:60,  align:"center", sortable:true },
-  { key:"note",         label:"확인 필요사항",     width:140, align:"left" },
-  { key:"decision",     label:"의사결정 필요사항", width:160, align:"left",  isLast:true },
+  { key:"plant",        label:"플랜트",       width:60,  align:"center" },
+  { key:"itemCategory", label:"제약대상 유형", width:80, align:"center" },
+  { key:"shareType",    label:"공용/전용",     width:60,  align:"center" },
+  { key:"code",         label:"자재코드",      width:90,  align:"center" },
+  { key:"name",         label:"자재명",        width:140, align:"left",  isName:true },
+  { key:"unit",         label:"단위",          width:52,  align:"center" },
+  { key:"impactCount",  label:"영향품목수",    width:60,  align:"center", sortable:true, isLast:true },
 ];
 var CONSTR_COMPACT_W = 140;  // 압축 모드 월별 컬럼 너비 (자재 부족 표시용)
 var CONSTR_METRIC_W  = 72;  // 상세 모드 지표 컬럼 너비

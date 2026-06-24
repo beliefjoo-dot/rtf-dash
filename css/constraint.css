@@ -309,9 +309,9 @@
 
 /* ── 펼침 상세 영역 개선 ── */
 
-/* 완제품 정보 컬럼 — 연한 녹색 배경으로 수량 영역과 구분 */
-.cst-detail-data-row td.cst-dtl-info {
-  background: #f0fdf4;
+/* 완제품 정보 컬럼 — 녹색 배경으로 수량 영역과 구분 */
+.cst-detail-table .cst-detail-data-row td.cst-dtl-info {
+  background: #bbf7d0 !important;
 }
 
 /* 정보 영역 헤더 — 전체 헤더와 동일 색상으로 통일 */

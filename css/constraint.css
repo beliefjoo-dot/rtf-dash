@@ -851,11 +851,11 @@
 /* 영향품목 및 조율 후보 표 */
 .cst-imp-table { border-collapse: collapse; font-size: 13px; min-width: 100%; table-layout: auto; }
 .cst-imp-table th {
-  background: #15803d; color: #fff; font-size: 12px; font-weight: 700;
+  color: #fff; font-size: 12px; font-weight: 700;
   padding: 5px 10px; text-align: center; vertical-align: middle; white-space: nowrap;
 }
 .cst-imp-month { border-left: 2px solid rgba(255,255,255,0.3) !important; }
-.cst-imp-sub   { background: #166534 !important; font-size: 11px !important; }
+.cst-imp-sub   { font-size: 11px !important; }
 .cst-imp-table td { border-bottom: 1px solid #e5e7eb; padding: 5px 8px; vertical-align: middle; }
 .cst-imp-row:hover td { background: #fffbeb !important; }
 .cst-imp-code   { font-size: 12px; text-align: center; white-space: nowrap; }
@@ -866,19 +866,38 @@
 .cst-imp-adj    { text-align: center; white-space: nowrap; }
 .cst-adj-candidate { color: #b45309; font-weight: 700; }
 .cst-adj-unknown   { color: #9ca3af; font-size: 12px; }
-.cst-imp-sub-short { background: #14532d !important; }
+.cst-imp-sub-short { }
 .cst-imp-short     { color: #b45309; font-weight: 700; }
 .cst-imp-matshort  { color: #b02a37; font-weight: 700; }
 
-/* ── 영향품목 월별 컬럼 교번 음영 (홀수 월 그룹) ─────────────────────────── */
-th.cst-imp-month.cst-imp-col-shade { background: #14532d !important; }
-th.cst-imp-sub.cst-imp-col-shade   { background: #14532d !important; }
-td.cst-imp-col-shade               { background: rgba(20, 83, 45, 0.07); }
+/* ── 영향품목 월별 컬럼 교번 음영 — body 셀만 (class 기반) ──────────────── */
+td.cst-imp-col-shade { background: rgba(20, 83, 45, 0.07); }
 
-/* ── 수급요약 컬럼 교번 음영 ─────────────────────────────────────────────── */
-.cst-ss-table thead th:nth-child(2n)                    { background: #14532d; }
-.cst-ss-table tbody td:nth-child(2n)                    { background: rgba(20, 83, 45, 0.06); }
-.cst-ss-shortage td:nth-child(2n), .cst-ss-ok td:nth-child(2n) { background: rgba(20, 83, 45, 0.08); }
+/* ── Supply Summary Table: 전체 헤더 녹색 통일 ───────────────────────────── */
+.supply-summary-table thead th {
+  background: #15803d !important;
+  color: #fff !important;
+}
+
+/* ── Impact Items Table: 헤더 색상 규칙 ──────────────────────────────────── */
+/* 기본정보 컬럼 (완제품코드·완제품명·품목군·1개당 소요량·조율 후보): 진한 남색 */
+.impact-items-table thead th {
+  background: #24272b !important;
+  color: #fff !important;
+}
+/* 월 그룹 헤더 (6월~12월): 녹색 */
+.impact-items-table thead th.month-group-header {
+  background: #15803d !important;
+}
+/* 월 지표 서브헤더 (생산계획·총 자재 필요수량·부족·자재 부족수량): 녹색 */
+.impact-items-table thead th.month-metric-header {
+  background: #15803d !important;
+}
+/* 홀수 월 교번 음영: 진녹색 */
+.impact-items-table thead th.month-group-header.cst-imp-col-shade,
+.impact-items-table thead th.month-metric-header.cst-imp-col-shade {
+  background: #14532d !important;
+}
 
 /* ── 빠른 시뮬레이션 ──────────────────────────────────────────────────────── */
 .cst-sim-section .cst-det-section-title { background: #1e3a5f; }

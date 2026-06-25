@@ -1450,7 +1450,7 @@ function renderCstDetailExpanded(item, months, totalCols) {
   var summaryHtml =
     "<div class=\"cst-det-section\">" +
     "<div class=\"cst-det-section-title\">월별 자재 수급요약</div>" +
-    "<div class=\"cst-det-scroll\"><table class=\"cst-ss-table\"><thead><tr>" +
+    "<div class=\"cst-det-scroll\"><table class=\"cst-ss-table supply-summary-table\"><thead><tr>" +
     "<th>월</th><th>총 자재 필요수량</th><th>월초재고</th><th>입고계획</th><th>가용수량</th><th>자재 부족수량</th><th>판단상태</th>" +
     "</tr></thead><tbody>" + summaryRows + "</tbody></table></div></div>";
 
@@ -1558,13 +1558,13 @@ function renderCstDetailExpanded(item, months, totalCols) {
   var impColPer = shortageConfirmed ? 3 : 2;
   var impMonthHeads = months.map(function(m, mi) {
     var sc = mi % 2 === 1 ? " cst-imp-col-shade" : "";
-    return "<th class=\"cst-imp-month" + sc + "\" colspan=\"" + impColPer + "\">" + escapeHtml(monthLabel(m)) + "</th>";
+    return "<th class=\"cst-imp-month month-group-header" + sc + "\" colspan=\"" + impColPer + "\">" + escapeHtml(monthLabel(m)) + "</th>";
   }).join("");
   var impSubHeads = months.map(function(m, mi) {
     var sc = mi % 2 === 1 ? " cst-imp-col-shade" : "";
     return shortageConfirmed
-      ? "<th class=\"cst-imp-sub" + sc + "\">생산계획</th><th class=\"cst-imp-sub cst-imp-sub-short" + sc + "\">부족</th><th class=\"cst-imp-sub" + sc + "\">자재 부족수량</th>"
-      : "<th class=\"cst-imp-sub" + sc + "\">생산계획</th><th class=\"cst-imp-sub" + sc + "\">총 자재 필요수량</th>";
+      ? "<th class=\"cst-imp-sub month-metric-header" + sc + "\">생산계획</th><th class=\"cst-imp-sub cst-imp-sub-short month-metric-header" + sc + "\">부족</th><th class=\"cst-imp-sub month-metric-header" + sc + "\">자재 부족수량</th>"
+      : "<th class=\"cst-imp-sub month-metric-header" + sc + "\">생산계획</th><th class=\"cst-imp-sub month-metric-header" + sc + "\">총 자재 필요수량</th>";
   }).join("");
 
   var impRows = shownParents.map(function(p) {
@@ -1618,11 +1618,11 @@ function renderCstDetailExpanded(item, months, totalCols) {
   var impactHtml =
     "<div class=\"cst-det-section\">" +
     "<div class=\"cst-det-section-title\">영향품목 및 조율 후보</div>" +
-    "<div class=\"cst-det-scroll\"><table class=\"cst-imp-table\"><thead>" +
-    "<tr class=\"cst-imp-head\"><th rowspan=\"2\">완제품코드</th><th rowspan=\"2\">완제품명</th>" +
-    "<th rowspan=\"2\">품목군</th>" +
-    "<th rowspan=\"2\" title=\"완제품 1개 생산 시 필요한 자재 수량\">1개당 소요량</th>" +
-    impMonthHeads + "<th rowspan=\"2\">조율 후보</th></tr>" +
+    "<div class=\"cst-det-scroll\"><table class=\"cst-imp-table impact-items-table\"><thead>" +
+    "<tr class=\"cst-imp-head\"><th class=\"info-col-header\" rowspan=\"2\">완제품코드</th><th class=\"info-col-header\" rowspan=\"2\">완제품명</th>" +
+    "<th class=\"info-col-header\" rowspan=\"2\">품목군</th>" +
+    "<th class=\"info-col-header\" rowspan=\"2\" title=\"완제품 1개 생산 시 필요한 자재 수량\">1개당 소요량</th>" +
+    impMonthHeads + "<th class=\"info-col-header\" rowspan=\"2\">조율 후보</th></tr>" +
     "<tr class=\"cst-imp-head\">" + impSubHeads + "</tr>" +
     "</thead><tbody>" + impRows + "</tbody></table>" + moreMsg + "</div></div>";
 

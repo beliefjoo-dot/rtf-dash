@@ -1529,22 +1529,27 @@ function renderCstDetailExpanded(item, months, totalCols) {
   }
 
   // ══ SECTION 2: 영향품목 및 조율 후보 ══
-  var shortageConfirmed = canCompute && item.hasAnyShortage;
 
-  // 부족 확정 시: 완제품 RTF 부족 (판매계획 - 공급계획) lookup
+  // 판매계획 lookup (부족 컬럼 — shortageConfirmed 여부 무관)
   var salesByParentMonth = new Map();
-  if (shortageConfirmed) {
-    state.mappedData.plan_monthly.forEach(function(r) {
-      var code = cleanOptional(r.itemCode), plant = cleanOptional(r.plant), month = cleanOptional(r.month);
-      if (!code || !plant || !month) return;
-      var key = code + "|" + plant + "|" + month;
-      salesByParentMonth.set(key, (salesByParentMonth.get(key) || 0) + (cleanNumber(r.salesQty) || 0));
-    });
-  }
+  state.mappedData.plan_monthly.forEach(function(r) {
+    var code = cleanOptional(r.itemCode), plant = cleanOptional(r.plant), month = cleanOptional(r.month);
+    if (!code || !plant || !month) return;
+    var key = code + "|" + plant + "|" + month;
+    salesByParentMonth.set(key, (salesByParentMonth.get(key) || 0) + (cleanNumber(r.salesQty) || 0));
+  });
 
   // 월별 자재 부족수량 index
   var monthlyShortage = new Map();
   item.monthlyData.forEach(function(md, i) { monthlyShortage.set(months[i], md.shortageQty); });
+
+  // 월별 전체 자재 필요수량 (자재 부족수량 안분 기준)
+  var totalReqByMonth = new Map();
+  item.parentItems.forEach(function(p) {
+    p.monthly.forEach(function(md) {
+      totalReqByMonth.set(md.month, (totalReqByMonth.get(md.month) || 0) + md.reqQty);
+    });
+  });
 
   var sortedParents = item.parentItems.slice().sort(function(a, b) {
     var aR = a.monthly.reduce(function(s, m) { return s + m.reqQty; }, 0);
@@ -1555,20 +1560,22 @@ function renderCstDetailExpanded(item, months, totalCols) {
   var hasMore = sortedParents.length > EXPAND_LIMIT;
   var shownParents = sortedParents.slice(0, EXPAND_LIMIT);
 
-  var impColPer = shortageConfirmed ? 3 : 2;
+  // 5컬럼/월: 생산계획, 부족, 총 자재 필요수량, 자재 부족수량, 완제품 환산 영향수량
   var impMonthHeads = months.map(function(m) {
-    return "<th class=\"cst-imp-month impact-month-header\" colspan=\"" + impColPer + "\">" + escapeHtml(monthLabel(m)) + "</th>";
+    return "<th class=\"cst-imp-month impact-month-header\" colspan=\"5\">" + escapeHtml(monthLabel(m)) + "</th>";
   }).join("");
   var impSubHeads = months.map(function() {
-    return shortageConfirmed
-      ? "<th class=\"cst-imp-sub impact-month-metric-header\">생산계획</th><th class=\"cst-imp-sub impact-month-metric-header\">부족</th><th class=\"cst-imp-sub impact-month-metric-header\">자재 부족수량</th>"
-      : "<th class=\"cst-imp-sub impact-month-metric-header\">생산계획</th><th class=\"cst-imp-sub impact-month-metric-header\">총 자재 필요수량</th>";
+    return "<th class=\"cst-imp-sub impact-month-metric-header\">생산계획</th>" +
+           "<th class=\"cst-imp-sub impact-month-metric-header\">부족</th>" +
+           "<th class=\"cst-imp-sub impact-month-metric-header\">총 자재 필요수량</th>" +
+           "<th class=\"cst-imp-sub impact-month-metric-header\">자재 부족수량</th>" +
+           "<th class=\"cst-imp-sub impact-month-metric-header\">완제품 환산 영향수량</th>";
   }).join("");
 
   var impRows = shownParents.map(function(p) {
     var unitReqNum = null;
     p.monthly.some(function(m) {
-      if (m.prodQty > 0) { unitReqNum = m.reqQty / m.prodQty; return true; }
+      if (m.prodQty > 0 && m.reqQty > 0) { unitReqNum = m.reqQty / m.prodQty; return true; }
       return false;
     });
     var adjLabel = !canCompute ? "데이터 연결 후 판단"
@@ -1577,37 +1584,73 @@ function renderCstDetailExpanded(item, months, totalCols) {
                : adjLabel === "데이터 연결 후 판단" ? " cst-adj-unknown" : "";
 
     var monthlyCells = p.monthly.map(function(md, mi) {
-      var month    = months[mi];
-      var sc       = mi % 2 === 1 ? " cst-imp-col-shade" : "";
+      var month = months[mi];
+      var sc = mi % 2 === 1 ? " cst-imp-col-shade" : "";
+
+      // 생산계획
       var prodDisp = md.prodQty > 0 ? formatNumber(Math.round(md.prodQty)) : "-";
 
-      if (shortageConfirmed) {
-        var salesKey    = p.code + "|" + p.plant + "|" + month;
-        var salesQty    = salesByParentMonth.get(salesKey) || 0;
-        var rtfShortage = Math.max(0, salesQty - md.prodQty);
-        var rtfDisp     = rtfShortage > 0 ? formatNumber(Math.round(rtfShortage)) : "-";
-        var matShort    = monthlyShortage.get(month);
-        var matDisp     = (matShort !== null && matShort > 0)
-          ? escapeHtml(_cstFmtVal(matShort, dec, matUnit)) : "-";
-        return "<td class=\"cst-imp-num" + sc + "\">" + prodDisp + "</td>" +
-               "<td class=\"cst-imp-num cst-imp-short" + sc + "\">" + rtfDisp + "</td>" +
-               "<td class=\"cst-imp-num cst-imp-matshort" + sc + "\">" + matDisp + "</td>";
+      // 부족: 판매계획 - 생산계획
+      var salesQty = salesByParentMonth.get(p.code + "|" + p.plant + "|" + month) || 0;
+      var rtfShortage = Math.max(0, salesQty - md.prodQty);
+      var rtfDisp = rtfShortage > 0 ? formatNumber(Math.round(rtfShortage)) : "-";
+
+      // 총 자재 필요수량
+      var reqDisp = md.reqQty > 0 ? escapeHtml(_cstFmtVal(md.reqQty, dec, matUnit)) : "-";
+
+      // 자재 부족수량: 전체 자재 부족수량을 reqQty 비율로 안분
+      var totalShortage = monthlyShortage.get(month);
+      var totalReqQty = totalReqByMonth.get(month) || 0;
+      var pMatShortage = null;
+      if (canCompute && totalShortage !== null && totalShortage > 0 && totalReqQty > 0) {
+        pMatShortage = totalShortage * (md.reqQty / totalReqQty);
       }
+      var matDisp = (pMatShortage !== null && pMatShortage > 0)
+        ? escapeHtml(_cstFmtVal(pMatShortage, dec, matUnit)) : "-";
+
+      // 완제품 환산 영향수량: 자재 부족수량 / 개당 소요량 = pMatShortage * prodQty / reqQty
+      var fgImpact = null;
+      if (pMatShortage !== null && pMatShortage > 0 && md.reqQty > 0) {
+        fgImpact = pMatShortage * md.prodQty / md.reqQty;
+      }
+      var fgDisp = (fgImpact !== null && fgImpact > 0) ? formatNumber(Math.round(fgImpact)) : "-";
+
       return "<td class=\"cst-imp-num" + sc + "\">" + prodDisp + "</td>" +
-             "<td class=\"cst-imp-num" + sc + "\">" +
-               escapeHtml(md.reqQty > 0 ? _cstFmtVal(md.reqQty, dec, matUnit) : "-") + "</td>";
+             "<td class=\"cst-imp-num cst-imp-short" + sc + "\">" + rtfDisp + "</td>" +
+             "<td class=\"cst-imp-num" + sc + "\">" + reqDisp + "</td>" +
+             "<td class=\"cst-imp-num cst-imp-matshort" + sc + "\">" + matDisp + "</td>" +
+             "<td class=\"cst-imp-num" + sc + "\">" + fgDisp + "</td>";
     }).join("");
 
     return "<tr class=\"cst-imp-row\">" +
       "<td class=\"cst-imp-code\" title=\"" + escapeHtml(p.code) + "\">" + escapeHtml(p.code) + "</td>" +
       "<td class=\"cst-imp-name\" title=\"" + escapeHtml(p.name) + "\">" + escapeHtml(p.name) + "</td>" +
       "<td class=\"cst-imp-center\">" + escapeHtml(p.itemGroup === NEED_MASTER ? "확인필요" : p.itemGroup) + "</td>" +
-      "<td class=\"cst-imp-num cst-imp-coeff\" title=\"완제품 1개 생산 시 필요한 자재 수량\">" +
+      "<td class=\"cst-imp-num cst-imp-coeff\" title=\"완제품 1개 생산 시 소요량\">" +
         escapeHtml(unitReqNum !== null ? _cstFmtVal(unitReqNum, 6, matUnit) : "-") + "</td>" +
       monthlyCells +
       "<td class=\"cst-imp-adj" + adjCls + "\">" + escapeHtml(adjLabel) + "</td>" +
       "</tr>";
   }).join("");
+
+  // 합계 행
+  var totalRow = "<tr class=\"cst-imp-total\">" +
+    "<td colspan=\"4\" class=\"cst-imp-total-label\">합계</td>" +
+    months.map(function(month, mi) {
+      var sc = mi % 2 === 1 ? " cst-imp-col-shade" : "";
+      var md = item.monthlyData[mi];
+      var totalShortage = monthlyShortage.get(month);
+      var reqDisp = md.requiredQty > 0 ? escapeHtml(_cstFmtVal(md.requiredQty, dec, matUnit)) : "-";
+      var shortDisp = (canCompute && totalShortage !== null && totalShortage > 0)
+        ? escapeHtml(_cstFmtVal(totalShortage, dec, matUnit)) : "-";
+      return "<td class=\"cst-imp-num" + sc + "\">-</td>" +
+             "<td class=\"cst-imp-num" + sc + "\">-</td>" +
+             "<td class=\"cst-imp-num cst-imp-total-num" + sc + "\">" + reqDisp + "</td>" +
+             "<td class=\"cst-imp-num cst-imp-total-num cst-imp-matshort" + sc + "\">" + shortDisp + "</td>" +
+             "<td class=\"cst-imp-num" + sc + "\">-</td>";
+    }).join("") +
+    "<td class=\"cst-imp-adj\">-</td>" +
+    "</tr>";
 
   var moreMsg = hasMore
     ? "<div class=\"cst-detail-more\">전체 " + sortedParents.length + "개 중 " + EXPAND_LIMIT + "개 표시</div>"
@@ -1616,13 +1659,17 @@ function renderCstDetailExpanded(item, months, totalCols) {
   var impactHtml =
     "<div class=\"cst-det-section\">" +
     "<div class=\"cst-det-section-title\">영향품목 및 조율 후보</div>" +
+    "<div class=\"cst-imp-note\">공용자재의 자재 부족수량은 영향품목 기준으로 표시되며, 최종 배분은 회의에서 결정합니다.</div>" +
     "<div class=\"cst-det-scroll\"><table class=\"cst-imp-table impact-items-table\"><thead>" +
-    "<tr class=\"cst-imp-head\"><th class=\"info-col-header\" rowspan=\"2\">완제품코드</th><th class=\"info-col-header\" rowspan=\"2\">완제품명</th>" +
+    "<tr class=\"cst-imp-head\">" +
+    "<th class=\"info-col-header\" rowspan=\"2\">완제품코드</th>" +
+    "<th class=\"info-col-header\" rowspan=\"2\">완제품명</th>" +
     "<th class=\"info-col-header\" rowspan=\"2\">품목군</th>" +
-    "<th class=\"info-col-header\" rowspan=\"2\" title=\"완제품 1개 생산 시 필요한 자재 수량\">1개당 소요량</th>" +
-    impMonthHeads + "<th class=\"info-col-header\" rowspan=\"2\">조율 후보</th></tr>" +
+    "<th class=\"info-col-header\" rowspan=\"2\" title=\"완제품 1개 생산 시 소요량\">개당 소요량</th>" +
+    impMonthHeads +
+    "<th class=\"info-col-header\" rowspan=\"2\">조율 후보</th></tr>" +
     "<tr class=\"cst-imp-head\">" + impSubHeads + "</tr>" +
-    "</thead><tbody>" + impRows + "</tbody></table>" + moreMsg + "</div></div>";
+    "</thead><tbody>" + impRows + totalRow + "</tbody></table>" + moreMsg + "</div></div>";
 
   return "<tr class=\"cst-detail-row\"><td colspan=\"" + totalCols + "\" class=\"cst-detail-cell\">" +
     "<div class=\"cst-detail-inner cst-detail-v2\">" +

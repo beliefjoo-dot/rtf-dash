@@ -873,6 +873,24 @@
 /* ── 영향품목 월별 컬럼 교번 음영 — body 셀만 (class 기반) ──────────────── */
 td.cst-imp-col-shade { background: rgba(20, 83, 45, 0.07); }
 
+/* 영향품목 안내 문구 */
+.cst-imp-note {
+  color: #6b7280;
+  font-size: 11px;
+  padding: 4px 10px 2px;
+}
+
+/* 합계 행 */
+.cst-imp-total { background: #f1f5f9; }
+.cst-imp-total-label {
+  color: #374151;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  border-bottom: 1px solid #cbd3dc;
+}
+.cst-imp-total-num { font-weight: 700; color: #1f2937; }
+
 /* ── Supply Summary Table: 전체 헤더 녹색 통일 ───────────────────────────── */
 .supply-summary-table thead th {
   background: #15803d !important;
